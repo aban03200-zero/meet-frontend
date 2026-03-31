@@ -176,7 +176,7 @@ select option{background:var(--bg3)}
 #waitB.on{display:flex}
 .wspinner{width:38px;height:38px;border:3px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .9s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-.wname{font-size:19px;font-weight:500}.wtxt{font-size:13px;color:var(--tx2)}
+.wname{font-size:19px;font-weight:500}.wtxt{font-size:13px;color:var(--tx2); text-align:center; line-height:1.5;}
 
 /* ── AI MODAL ── */
 #aiM{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:300;align-items:center;justify-content:center;padding:20px}
@@ -286,6 +286,8 @@ select option{background:var(--bg3)}
 #toast{position:fixed;bottom:82px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 14px;font-size:13px;color:var(--tx);opacity:0;pointer-events:none;transition:all .2s;z-index:400;white-space:nowrap}
 #toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
 </style>
+<!-- MediaPipe Face Mesh for Behavior Tracking -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/face_mesh.js" crossorigin="anonymous"></script>
 </head>
 <body>
 
@@ -495,9 +497,9 @@ select option{background:var(--bg3)}
 
 <!-- 대기 배너 -->
 <div id="waitB">
-  <div class="wspinner"></div>
+  <div class="wspinner" id="wspinner"></div>
   <div class="wname" id="wname">—</div>
-  <div class="wtxt">호스트의 승인을 기다리는 중입니다</div>
+  <div class="wtxt" id="wtxt">호스트의 승인을 기다리는 중입니다</div>
 </div>
 
 <!-- AI 모달 -->
@@ -554,6 +556,11 @@ const S = {
   recOn:false,tr:[],
   recog:null,ieId:null,
   pending:null,
+  joinTimeout:null,
+  screenshots:[],
+  ssInterval:null,
+  behaviorLogs: [],
+  behaviorStats: {away: 0, total: 0}
 };
 let admitRole="ie";
 let ppOpen=false,fsOpen=false;
@@ -678,6 +685,15 @@ async function enter(roomId,username){
   if(!S.isHost){
     document.getElementById("wname").textContent=roomId;
     document.getElementById("waitB").classList.add("on");
+    
+    // (Goal 1) 10초 내로 호스트의 응답(admit/방참가유저)이 없으면 종료/없는방 처리
+    S.joinTimeout = setTimeout(() => {
+       if(S.peers.size === 0 && S.pnames.size === 0) {
+           document.getElementById("wspinner").style.display = "none";
+           document.getElementById("wname").innerHTML = `<div style="font-size:40px; margin-bottom:10px">🚫</div>`;
+           document.getElementById("wtxt").innerHTML = `채팅이 종료되었거나<br>존재하지 않는 방입니다.<br><button onclick="location.href=location.pathname" style="margin-top:15px;padding:8px 16px;border-radius:8px;background:#1a73e8;color:white;border:none;cursor:pointer">메인 화면으로</button>`;
+       }
+    }, 10000);
   }
 }
 
@@ -701,7 +717,6 @@ function togRec(){
   }
 }
 
-// isRemote가 true이면 다른 사람(호스트)의 명령으로 실행되는 백그라운드 STT
 function startRec(isRemote = false){
   if (S.recOn) return; 
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
@@ -714,6 +729,7 @@ function startRec(isRemote = false){
   r.lang="ko-KR";
   r.continuous=true;
   r.interimResults=true;
+  r.maxAlternatives=1; // (Goal 2) 정확성을 위해 가장 확실한 1개 결과만 반환
   
   r.onresult=e=>{
     let fin="",int="";
@@ -724,14 +740,12 @@ function startRec(isRemote = false){
     const cap=document.getElementById("cap-local");
     if(cap){cap.textContent=int||fin;cap.classList.toggle("on",!!(int||fin));}
     
-    // 사용자가 스스로 마이크를 켜둔 상태일 때만 텍스트 변환 전송/추가
     if(fin.trim() && S.mic){
       if (S.isHost) {
         const en={speaker:S.username,text:fin.trim(),ts:new Date(),isLocal:true,sid:"local"};
         S.tr.push(en);
         addTrEntry(en);
       } else {
-        // 참가자 본인의 목소리 텍스트를 호스트에게 백그라운드 소켓 메시지로 발송
         if(S.socket) S.socket.emit("chat-message", {roomId: S.roomId, message: "SYS_TR:" + fin.trim()});
       }
       setTimeout(()=>{const c=document.getElementById("cap-local");if(c){c.textContent="";c.classList.remove("on");}},1800);
@@ -746,7 +760,6 @@ function startRec(isRemote = false){
   };
   
   r.onend=()=>{
-    // 브라우저가 조용할 때 임의로 STT를 끊는 것을 방지하여 무한 재시작
     if(S.recOn) {
       setTimeout(()=> { if (S.recOn && S.recog) { try{S.recog.start();}catch(err){} } }, 300);
     }
@@ -757,7 +770,6 @@ function startRec(isRemote = false){
     S.recog=r;
     S.recOn=true;
     
-    // UI에 '음성 기록 중' 표시 (모든 참가자)
     document.getElementById("recInd").classList.add("on");
     
     if(S.isHost) {
@@ -766,8 +778,17 @@ function startRec(isRemote = false){
       document.getElementById("rh").style.display="none";
       toast("🎙 음성 기록을 시작합니다");
       
-      // 호스트가 기록을 시작했음을 모두에게 알림 (모두의 백그라운드 STT 실행 목적)
       S.socket?.emit("chat-message", {roomId: S.roomId, message: "SYS_CMD:START_REC"});
+      
+      // (Goal 4) 자동 스크린샷 타이머 시작 (15초 간격, 3장)
+      S.screenshots = [];
+      S.ssInterval = setInterval(() => {
+          if(S.screenshots.length >= 3) {
+              clearInterval(S.ssInterval);
+              return;
+          }
+          captureScreenshot();
+      }, 15000); 
     } else {
       toast("🎙 호스트가 음성 기록을 시작했습니다");
     }
@@ -782,6 +803,8 @@ function stopRec(isRemote = false){
   S.recog?.stop();
   S.recog = null;
   
+  if(S.ssInterval) clearInterval(S.ssInterval);
+  
   const c=document.getElementById("cap-local");if(c){c.textContent="";c.classList.remove("on");}
   document.getElementById("recInd").classList.remove("on");
 
@@ -789,10 +812,79 @@ function stopRec(isRemote = false){
     document.getElementById("recBtn").classList.remove("rec");
     document.getElementById("recLbl").textContent="음성 기록";
     toast("음성 기록을 중단했습니다");
-    // 호스트가 기록을 중단했음을 모두에게 알림
     S.socket?.emit("chat-message", {roomId: S.roomId, message: "SYS_CMD:STOP_REC"});
   } else {
     toast("호스트가 음성 기록을 중단했습니다");
+  }
+}
+
+function captureScreenshot() {
+  if(S.screenshots.length >= 3) return;
+  const videos = document.querySelectorAll('#vgrid video');
+  if(!videos.length) return;
+  
+  let targetVideo = videos[0];
+  if(S.ieId) {
+      const ieVid = document.getElementById(`vid-${S.ieId}`);
+      if(ieVid) targetVideo = ieVid;
+  }
+  
+  if (targetVideo.videoWidth === 0) return;
+  
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  canvas.width = targetVideo.videoWidth;
+  canvas.height = targetVideo.videoHeight;
+  ctx.drawImage(targetVideo, 0, 0, canvas.width, canvas.height);
+  
+  S.screenshots.push(canvas.toDataURL('image/jpeg', 0.6));
+  toast(`📸 자동 스크린샷 캡처됨 (${S.screenshots.length}/3)`);
+}
+
+// ── 면접자 행동 및 시선 추적 (AI) ──
+async function initFaceMesh() {
+  if(typeof FaceMesh === 'undefined') return;
+  try {
+      const faceMesh = new FaceMesh({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${file}`});
+      faceMesh.setOptions({maxNumFaces: 1, refineLandmarks: false, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5});
+      faceMesh.onResults((results) => {
+          S.behaviorStats.total++;
+          if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
+              const lm = results.multiFaceLandmarks[0];
+              const nose = lm[1];
+              const left = lm[33];
+              const right = lm[263];
+              const ratio = (nose.x - left.x) / (right.x - left.x);
+              // (Goal 5) 코 위치 비율에 따라 고개가 크게 돌아갔는지 확인
+              if (ratio < 0.25 || ratio > 0.75) {
+                  S.behaviorStats.away++;
+              }
+          }
+      });
+      
+      const video = document.getElementById('vid-local');
+      async function fmLoop() {
+          if(S.ieId === 'local' && video.readyState >= 2) {
+              await faceMesh.send({image: video});
+          }
+          if(S.ieId === 'local') requestAnimationFrame(fmLoop);
+      }
+      fmLoop();
+      
+      // 10초마다 시선 이탈률 평가 후 전송
+      setInterval(() => {
+          if(S.ieId === 'local' && S.behaviorStats.total > 0 && S.socket) {
+              const awayRate = S.behaviorStats.away / S.behaviorStats.total;
+              if (awayRate > 0.3) {
+                  S.socket.emit("chat-message", {roomId: S.roomId, message: "SYS_BEHAVIOR:시선 이탈 잦음(주의 산만)"});
+              } else {
+                  S.socket.emit("chat-message", {roomId: S.roomId, message: "SYS_BEHAVIOR:시선 안정적(집중)"});
+              }
+              S.behaviorStats = { away: 0, total: 0 }; 
+          }
+      }, 10000);
+  } catch(e) {
+      console.warn("FaceMesh Init Error", e);
   }
 }
 
@@ -839,6 +931,8 @@ function togIE(sid){
   if(S.ieId)S.proles.set(sid,"ie");else S.proles.set(sid,"part");
   document.querySelectorAll(".vt").forEach(t=>{const id=t.id.replace("tile-","");t.classList.toggle("ie-tile",id===S.ieId);});
   rebuildTrColors();rebuildPP();
+  
+  if (sid === 'local') initFaceMesh();
 }
 
 // ── 입장 허가 ──
@@ -863,6 +957,10 @@ function admitU(){
   updCnt(); if(ppOpen)rebuildPP();
 
   S.pending=null;
+  
+  if (S.recOn) {
+      setTimeout(() => { S.socket.emit("chat-message", {roomId: S.roomId, message: "SYS_CMD:START_REC"}); }, 1500);
+  }
 }
 function denyU(){
   if(!S.pending||!S.socket)return;
@@ -884,6 +982,7 @@ function connectSock(roomId,username){
         for(const u of users) await createPC(u.socketId,u.username,true);
         updCnt();
     } else {
+        if(users.length > 0) clearTimeout(S.joinTimeout);
         for(const u of users) S.pnames.set(u.socketId, u.username);
     }
   });
@@ -907,14 +1006,6 @@ function connectSock(roomId,username){
            updCnt(); if(ppOpen)rebuildPP();
         }
     }
-    
-    // 만약 이미 호스트가 음성 기록중인 상태에서 새로운 사람이 들어왔다면 
-    // 그 사람도 같이 음성기록을 시작할 수 있게 신호를 재전송합니다.
-    if (S.isHost && S.recOn) {
-        setTimeout(() => {
-            S.socket.emit("chat-message", {roomId: S.roomId, message: "SYS_CMD:START_REC"});
-        }, 1500);
-    }
   });
 
   s.on("user-waiting",({socketId,username})=>{
@@ -928,8 +1019,12 @@ function connectSock(roomId,username){
   });
 
   s.on("admitted",({role})=>{
+    clearTimeout(S.joinTimeout);
     document.getElementById("waitB").classList.remove("on");
-    if(role==="ie")S.ieId="local";
+    if(role==="ie") {
+        S.ieId="local";
+        initFaceMesh();
+    }
     
     for (const [sid, uname] of S.pnames.entries()) {
         if (!S.peers.has(sid)) createPC(sid, uname, true);
@@ -937,13 +1032,15 @@ function connectSock(roomId,username){
   });
 
   s.on("denied",()=>{
+    clearTimeout(S.joinTimeout);
     document.getElementById("waitB").classList.remove("on");
     toast("입장이 거절됐습니다");
-    setTimeout(()=>location.reload(),1500);
+    setTimeout(()=>location.href=location.pathname,1500);
   });
 
   s.on("offer",async({from,username,offer})=>{
     if (!S.isHost && document.getElementById("waitB").classList.contains("on")) {
+        clearTimeout(S.joinTimeout);
         document.getElementById("waitB").classList.remove("on");
         toast("호스트가 입장을 허가했습니다.");
         for (const [sid, uname] of S.pnames.entries()) {
@@ -968,25 +1065,17 @@ function connectSock(roomId,username){
   s.on("peer-media-state",({socketId,audio})=>{document.getElementById(`mi-${socketId}`)?.classList.toggle("on",!audio);});
   
   s.on("chat-message",({socketId,username,message,timestamp})=>{
-    // --- STT 텍스트 분산 처리 및 강제 종료 통신 ---
+    // --- STT / 백그라운드 메시지 처리 ---
     if(message === "SYS_CMD:START_REC") {
-      if(!S.isHost) startRec(true);
-      return;
+      if(!S.isHost) startRec(true); return;
     }
     if(message === "SYS_CMD:STOP_REC") {
-      if(!S.isHost) stopRec(true);
-      return;
+      if(!S.isHost) stopRec(true); return;
     }
     if(message === "SYS_CMD:END_MEETING") {
       if(!S.isHost) {
-        toast("호스트가 회의를 종료하여 방에서 나갑니다.");
-        setTimeout(() => {
-            S.localStream?.getTracks().forEach(t=>t.stop());
-            S.screenStream?.getTracks().forEach(t=>t.stop());
-            S.peers.forEach(pc=>pc.close());
-            S.socket?.disconnect();
-            location.reload();
-        }, 2000);
+        toast("호스트가 회의를 종료했습니다. 2초 뒤 퇴장합니다.");
+        setTimeout(() => { endCallLocal(); }, 2000);
       }
       return;
     }
@@ -994,12 +1083,16 @@ function connectSock(roomId,username){
       if(S.isHost && S.recOn) {
         const text = message.substring(7);
         const en = {speaker: username, text: text, ts: new Date(timestamp), isLocal: false, sid: socketId};
-        S.tr.push(en);
-        addTrEntry(en);
+        S.tr.push(en); addTrEntry(en);
       }
       return;
     }
-    // ----------------------------------------------
+    if(message.startsWith("SYS_BEHAVIOR:")) {
+      const log = message.substring(13);
+      S.behaviorLogs.push(`[${new Date(timestamp).toLocaleTimeString("ko-KR")}] ${username}: ${log}`);
+      return;
+    }
+    // ------------------------------------
 
     addChat(username,message,timestamp,socketId===s.id);
     if(!S.chatOpen){S.unread++;const b=document.getElementById("cbdg");b.style.display="flex";b.textContent=S.unread;}
@@ -1104,21 +1197,23 @@ function stopSS(){
 }
 
 function endCall(){
-  // 호스트이면 서버에 종료 명령 전송
   if(S.isHost && S.socket) {
       S.socket.emit("chat-message", {roomId: S.roomId, message: "SYS_CMD:END_MEETING"});
   }
-  
   if(S.recOn) stopRec(false);
   
-  // 소켓 메시지가 서버로 전송될 여유 시간을 확보한 뒤 정리
+  // 소켓 메시지가 서버로 전송될 여유 시간을 확보한 뒤 로컬 정리 (Goal 3)
   setTimeout(() => {
-      S.localStream?.getTracks().forEach(t=>t.stop());
-      S.screenStream?.getTracks().forEach(t=>t.stop());
-      S.peers.forEach(pc=>pc.close());
-      S.socket?.disconnect();
-      location.reload();
-  }, 500);
+      endCallLocal();
+  }, S.isHost ? 1500 : 100);
+}
+
+function endCallLocal() {
+  S.localStream?.getTracks().forEach(t=>t.stop());
+  S.screenStream?.getTracks().forEach(t=>t.stop());
+  S.peers.forEach(pc=>pc.close());
+  S.socket?.disconnect();
+  location.href = location.pathname;
 }
 
 // ── Chat ──
@@ -1241,7 +1336,30 @@ async function genRep(){
   const full=S.tr.map(e=>`[${e.ts.toLocaleTimeString("ko-KR")}] ${e.speaker}: ${e.text}`).join("\n");
   const ieTxt=ieEn.map(e=>`[${e.ts.toLocaleTimeString("ko-KR")}] ${e.text}`).join("\n");
   const min=Math.floor((Date.now()-S.t0)/60000);
-  const p=`채용 면접 대화록을 분석해 JSON 리포트를 생성하세요.\n\n면접자: ${ie}\n면접관: ${S.username}\n면접 시간: 약 ${min}분\n평가 항목: ${cl.join(", ")}\n\n전체 대화록:\n${full}\n\n면접자(${ie}) 발화:\n${ieTxt}\n\nJSON만 응답하세요:\n{"scores":[{"criterion":"항목","score":숫자(1-5),"evidence":"발화 근거"}],"strengths":["강점1","강점2","강점3"],"improvements":["보완1","보완2"],"summary":"종합평가 2~3문장","verdict":"적합 또는 보류 또는 재검토","totalScore":숫자(0-100)}`;
+  const behaviorTxt = (S.behaviorLogs || []).join("\n");
+  
+  // (Goal 5) 면접자 행동 및 시선 로그 프롬프트에 포함
+  const p=`채용 면접 대화록 및 행동 분석 로그를 바탕으로 JSON 리포트를 생성하세요.
+
+면접자: ${ie}
+면접관: ${S.username}
+면접 시간: 약 ${min}분
+평가 항목: ${cl.join(", ")}
+
+전체 대화록:
+${full}
+
+면접자(${ie}) 발화:
+${ieTxt}
+
+면접자 시선 및 행동 로그 (AI 비전 기반):
+${behaviorTxt || "특이사항 없음 (시선 안정적)"}
+
+행동 로그를 분석하여 '태도 및 집중도' 평가에 반드시 반영하세요. 시선 이탈이나 주의 산만이 잦을 경우 감점 요인이 될 수 있습니다.
+
+JSON만 응답하세요:
+{"scores":[{"criterion":"항목","score":숫자(1-5),"evidence":"발화/행동 근거"}],"strengths":["강점1","강점2","강점3"],"improvements":["보완1","보완2"],"summary":"종합평가 2~3문장","verdict":"적합 또는 보류 또는 재검토","totalScore":숫자(0-100)}`;
+
   try{const r=await callAI(p);renderRep(r,ie);}catch(e){if(e.message==="NO_KEY"){showSetup("rp");return;}showErr(e.message);}
 }
 
@@ -1285,7 +1403,15 @@ function renderRep(text,ie){
   const vc=d.verdict==="적합"?"g":d.verdict==="보류"?"h":"r";
   const min=Math.floor((Date.now()-S.t0)/60000);
   const cl=S.criteria.length?S.criteria:DC;
-  c.innerHTML=`<h3 class="pu">👤 면접자 기본 정보</h3><div style="background:var(--bg3);border-radius:8px;padding:11px;font-size:12px;line-height:1.8;margin-bottom:11px"><div><strong>면접자:</strong> ${esc(ie)}</div><div><strong>면접관:</strong> ${esc(S.username)}</div><div><strong>면접 시간:</strong> 약 ${min}분</div><div><strong>평가 항목:</strong> ${cl.map(esc).join(", ")}</div></div><h3 class="pu">📊 인재상 항목별 점수</h3><div class="sgrid">${(d.scores||[]).map(s=>`<div class="scard"><div class="sct">${esc(s.criterion)}</div><div class="scv">${s.score}<span>/5</span></div><div class="sbar"><div class="sbarf" style="width:${s.score/5*100}%"></div></div><div class="sce">"${esc(s.evidence||"")}"</div></div>`).join("")}</div><h3 class="pu">✅ 강점 분석</h3><ul>${(d.strengths||[]).map(s=>`<li>${esc(s)}</li>`).join("")}</ul><h3 class="pu">🔧 보완 영역</h3><ul>${(d.improvements||[]).map(s=>`<li>${esc(s)}</li>`).join("")}</ul><h3 class="pu">🏆 종합 평가</h3><div class="tsbox"><div><div class="tsnum">${d.totalScore||0}<span>/100</span></div><div class="tslbl">인재상 부합 종합 점수</div></div><div style="flex:1;padding:0 12px;font-size:12px;color:var(--tx2);line-height:1.6">${esc(d.summary||"")}</div><span class="verd ${vc}">${esc(d.verdict||"")}</span></div><p style="font-size:11px;color:var(--tx2);margin-top:8px;line-height:1.5">⚠ 이 리포트는 AI 보조 의견입니다. 최종 채용 결정은 반드시 사람이 판단해야 합니다.</p>`;
+  
+  // (Goal 4) 캡처된 스크린샷 렌더링
+  const ssHtml = S.screenshots && S.screenshots.length > 0 ? 
+      `<h3 class="pu">📸 자동 캡처 스크린샷</h3>
+       <div style="display:flex; gap:10px; overflow-x:auto; margin-bottom:15px; padding-bottom:5px;">
+           ${S.screenshots.map(s => `<img src="${s}" style="height:90px; border-radius:8px; border:1px solid var(--border); object-fit:cover;">`).join('')}
+       </div>` : '';
+
+  c.innerHTML=ssHtml + `<h3 class="pu">👤 면접자 기본 정보</h3><div style="background:var(--bg3);border-radius:8px;padding:11px;font-size:12px;line-height:1.8;margin-bottom:11px"><div><strong>면접자:</strong> ${esc(ie)}</div><div><strong>면접관:</strong> ${esc(S.username)}</div><div><strong>면접 시간:</strong> 약 ${min}분</div><div><strong>평가 항목:</strong> ${cl.map(esc).join(", ")}</div></div><h3 class="pu">📊 인재상 항목별 점수</h3><div class="sgrid">${(d.scores||[]).map(s=>`<div class="scard"><div class="sct">${esc(s.criterion)}</div><div class="scv">${s.score}<span>/5</span></div><div class="sbar"><div class="sbarf" style="width:${s.score/5*100}%"></div></div><div class="sce">"${esc(s.evidence||"")}"</div></div>`).join("")}</div><h3 class="pu">✅ 강점 분석</h3><ul>${(d.strengths||[]).map(s=>`<li>${esc(s)}</li>`).join("")}</ul><h3 class="pu">🔧 보완 영역</h3><ul>${(d.improvements||[]).map(s=>`<li>${esc(s)}</li>`).join("")}</ul><h3 class="pu">🏆 종합 평가</h3><div class="tsbox"><div><div class="tsnum">${d.totalScore||0}<span>/100</span></div><div class="tslbl">인재상 부합 종합 점수</div></div><div style="flex:1;padding:0 12px;font-size:12px;color:var(--tx2);line-height:1.6">${esc(d.summary||"")}</div><span class="verd ${vc}">${esc(d.verdict||"")}</span></div><p style="font-size:11px;color:var(--tx2);margin-top:8px;line-height:1.5">⚠ 이 리포트는 AI 보조 의견입니다. 최종 채용 결정은 반드시 사람이 판단해야 합니다.</p>`;
 }
 function copyAI(){navigator.clipboard.writeText(document.getElementById("aic").innerText||"").then(()=>toast("클립보드에 복사됐습니다"));}
 
