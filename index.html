@@ -693,75 +693,106 @@ function cpLink(){navigator.clipboard.writeText(`${location.origin}${location.pa
 function cpCode(){navigator.clipboard.writeText(S.roomId).then(()=>toast(`코드 복사됨: ${S.roomId}`));}
 function copyCode(){cpCode();}
 
-// ── 음성 기록 ──
+// ── 분산 음성 기록 (STT) ──
 function togRec(){
   if(S.isHost){
-    if(S.recOn){
-      stopRec(false);
-    }else{
-      startRec(false);
-    }
+    if(S.recOn) stopRec(false);
+    else startRec(false);
   }
 }
 
+// isRemote가 true이면 다른 사람(호스트)의 명령으로 실행되는 백그라운드 STT
 function startRec(isRemote = false){
-  if (S.recOn) return; // 중복 실행 방지
+  if (S.recOn) return; 
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!SR){
     if(!isRemote) toast("Chrome 브라우저에서만 지원됩니다");
     return;
   }
-  const r=new SR();r.lang="ko-KR";r.continuous=true;r.interimResults=true;
+  
+  const r=new SR();
+  r.lang="ko-KR";
+  r.continuous=true;
+  r.interimResults=true;
+  
   r.onresult=e=>{
     let fin="",int="";
-    for(let i=e.resultIndex;i<e.results.length;i++){if(e.results[i].isFinal)fin+=e.results[i][0].transcript;else int+=e.results[i][0].transcript;}
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      if(e.results[i].isFinal) fin+=e.results[i][0].transcript;
+      else int+=e.results[i][0].transcript;
+    }
     const cap=document.getElementById("cap-local");
     if(cap){cap.textContent=int||fin;cap.classList.toggle("on",!!(int||fin));}
     
-    // UI에서 마이크가 켜져있을 때만 텍스트 변환 내역을 전송/추가
+    // 사용자가 스스로 마이크를 켜둔 상태일 때만 텍스트 변환 전송/추가
     if(fin.trim() && S.mic){
       if (S.isHost) {
         const en={speaker:S.username,text:fin.trim(),ts:new Date(),isLocal:true,sid:"local"};
-        S.tr.push(en);addTrEntry(en);
+        S.tr.push(en);
+        addTrEntry(en);
       } else {
-        // 참가자이면 호스트에게 소켓을 통해 텍스트 전달
+        // 참가자 본인의 목소리 텍스트를 호스트에게 백그라운드 소켓 메시지로 발송
         if(S.socket) S.socket.emit("chat-message", {roomId: S.roomId, message: "SYS_TR:" + fin.trim()});
       }
       setTimeout(()=>{const c=document.getElementById("cap-local");if(c){c.textContent="";c.classList.remove("on");}},1800);
     }
   };
+  
   r.onerror=e=>{
-    if(e.error!=="no-speech"){
-      if(!isRemote) toast(`STT 오류: ${e.error}`);
+    if(e.error === 'not-allowed' || e.error === 'service-not-allowed'){
+      if(!isRemote) toast(`STT 권한 오류: ${e.error}`);
       stopRec(isRemote);
     }
   };
-  r.onend=()=>{if(S.recOn)setTimeout(()=>S.recog?.start(),300);};
-  r.start();S.recog=r;S.recOn=true;
   
-  if(S.isHost) {
-    document.getElementById("recBtn").classList.add("rec");
-    document.getElementById("recLbl").textContent="기록 중단";
+  r.onend=()=>{
+    // 브라우저가 조용할 때 임의로 STT를 끊는 것을 방지하여 무한 재시작
+    if(S.recOn) {
+      setTimeout(()=> { if (S.recOn && S.recog) { try{S.recog.start();}catch(err){} } }, 300);
+    }
+  };
+
+  try {
+    r.start();
+    S.recog=r;
+    S.recOn=true;
+    
+    // UI에 '음성 기록 중' 표시 (모든 참가자)
     document.getElementById("recInd").classList.add("on");
-    document.getElementById("rh").style.display="none";
-    toast("🎙 음성 기록을 시작합니다");
-    // 참가자들에게 기록 시작 신호 전송
-    S.socket?.emit("chat-message", {roomId: S.roomId, message: "SYS_CMD:START_REC"});
+    
+    if(S.isHost) {
+      document.getElementById("recBtn").classList.add("rec");
+      document.getElementById("recLbl").textContent="기록 중단";
+      document.getElementById("rh").style.display="none";
+      toast("🎙 음성 기록을 시작합니다");
+      
+      // 호스트가 기록을 시작했음을 모두에게 알림 (모두의 백그라운드 STT 실행 목적)
+      S.socket?.emit("chat-message", {roomId: S.roomId, message: "SYS_CMD:START_REC"});
+    } else {
+      toast("🎙 호스트가 음성 기록을 시작했습니다");
+    }
+  } catch(err) {
+    console.warn("STT Start Error", err);
   }
 }
 
 function stopRec(isRemote = false){
   if (!S.recOn) return;
-  S.recog?.stop();S.recog=null;S.recOn=false;
-  const c=document.getElementById("cap-local");if(c){c.textContent="";c.classList.remove("on");}
+  S.recOn = false;
+  S.recog?.stop();
+  S.recog = null;
   
+  const c=document.getElementById("cap-local");if(c){c.textContent="";c.classList.remove("on");}
+  document.getElementById("recInd").classList.remove("on");
+
   if(S.isHost) {
     document.getElementById("recBtn").classList.remove("rec");
     document.getElementById("recLbl").textContent="음성 기록";
-    document.getElementById("recInd").classList.remove("on");
-    toast("음성 기록 중단");
-    // 참가자들에게 기록 종료 신호 전송
+    toast("음성 기록을 중단했습니다");
+    // 호스트가 기록을 중단했음을 모두에게 알림
     S.socket?.emit("chat-message", {roomId: S.roomId, message: "SYS_CMD:STOP_REC"});
+  } else {
+    toast("호스트가 음성 기록을 중단했습니다");
   }
 }
 
@@ -832,13 +863,6 @@ function admitU(){
   updCnt(); if(ppOpen)rebuildPP();
 
   S.pending=null;
-
-  // 이미 호스트가 기록 중이면 새로 들어온 사람에게 기록 시작하라고 신호 주기
-  if (S.recOn) {
-    setTimeout(() => {
-      if (S.recOn) S.socket.emit("chat-message", {roomId: S.roomId, message: "SYS_CMD:START_REC"});
-    }, 2000);
-  }
 }
 function denyU(){
   if(!S.pending||!S.socket)return;
@@ -882,6 +906,14 @@ function connectSock(roomId,username){
            toast(`${username}님이 참가했습니다`);
            updCnt(); if(ppOpen)rebuildPP();
         }
+    }
+    
+    // 만약 이미 호스트가 음성 기록중인 상태에서 새로운 사람이 들어왔다면 
+    // 그 사람도 같이 음성기록을 시작할 수 있게 신호를 재전송합니다.
+    if (S.isHost && S.recOn) {
+        setTimeout(() => {
+            S.socket.emit("chat-message", {roomId: S.roomId, message: "SYS_CMD:START_REC"});
+        }, 1500);
     }
   });
 
@@ -936,13 +968,26 @@ function connectSock(roomId,username){
   s.on("peer-media-state",({socketId,audio})=>{document.getElementById(`mi-${socketId}`)?.classList.toggle("on",!audio);});
   
   s.on("chat-message",({socketId,username,message,timestamp})=>{
-    // --- STT 텍스트 공유를 위한 백그라운드 통신 ---
+    // --- STT 텍스트 분산 처리 및 강제 종료 통신 ---
     if(message === "SYS_CMD:START_REC") {
       if(!S.isHost) startRec(true);
       return;
     }
     if(message === "SYS_CMD:STOP_REC") {
       if(!S.isHost) stopRec(true);
+      return;
+    }
+    if(message === "SYS_CMD:END_MEETING") {
+      if(!S.isHost) {
+        toast("호스트가 회의를 종료하여 방에서 나갑니다.");
+        setTimeout(() => {
+            S.localStream?.getTracks().forEach(t=>t.stop());
+            S.screenStream?.getTracks().forEach(t=>t.stop());
+            S.peers.forEach(pc=>pc.close());
+            S.socket?.disconnect();
+            location.reload();
+        }, 2000);
+      }
       return;
     }
     if(message.startsWith("SYS_TR:")) {
@@ -1057,12 +1102,23 @@ function stopSS(){
   document.getElementById("vid-local").srcObject=S.localStream;
   S.ss=false;document.getElementById("ssBtn").classList.remove("act");document.getElementById("ssBan").classList.remove("on");
 }
+
 function endCall(){
-  if(S.recOn)stopRec(false);
-  S.localStream?.getTracks().forEach(t=>t.stop());
-  S.screenStream?.getTracks().forEach(t=>t.stop());
-  S.peers.forEach(pc=>pc.close());
-  S.socket?.disconnect();location.reload();
+  // 호스트이면 서버에 종료 명령 전송
+  if(S.isHost && S.socket) {
+      S.socket.emit("chat-message", {roomId: S.roomId, message: "SYS_CMD:END_MEETING"});
+  }
+  
+  if(S.recOn) stopRec(false);
+  
+  // 소켓 메시지가 서버로 전송될 여유 시간을 확보한 뒤 정리
+  setTimeout(() => {
+      S.localStream?.getTracks().forEach(t=>t.stop());
+      S.screenStream?.getTracks().forEach(t=>t.stop());
+      S.peers.forEach(pc=>pc.close());
+      S.socket?.disconnect();
+      location.reload();
+  }, 500);
 }
 
 // ── Chat ──
