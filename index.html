@@ -4,6 +4,11 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>MeetRecord</title>
+<!-- html2canvas: 전체 화면 스크린샷 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<!-- jsPDF: PDF 다운로드 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/face_mesh.js" crossorigin="anonymous"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600&family=Roboto:wght@300;400;500&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -32,7 +37,7 @@ select option{background:var(--bg3)}
 .av-circle{width:48px;height:48px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:500}
 .ig{display:flex;flex-direction:column;gap:10px;margin-bottom:13px}
 
-/* ── LOBBY (host) ── */
+/* ── LOBBY ── */
 #lobby{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;overflow-y:auto;padding:20px 0}
 .logo{display:flex;align-items:center;gap:9px;margin-bottom:6px}
 .logo svg{width:34px;height:34px}
@@ -43,18 +48,13 @@ select option{background:var(--bg3)}
 .card{background:var(--bg2);border:1px solid var(--border);border-radius:22px;padding:24px 32px;width:min(420px,calc(100vw - 32px));box-shadow:var(--shadow)}
 .card h2{font-size:18px;font-weight:500;margin-bottom:3px}
 .card>p{font-size:13px;color:var(--tx2);margin-bottom:15px;line-height:1.5}
-
-/* mode selector */
 .mode-sel{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:13px}
 .mc{border:1.5px solid var(--border);border-radius:10px;padding:10px;cursor:pointer;transition:all .15s;text-align:center}
 .mc:hover{border-color:rgba(138,180,248,.4);background:rgba(138,180,248,.04)}
 .mc.sel{border-color:var(--blue);background:rgba(138,180,248,.08)}
 .mc.sel.iv{border-color:var(--purple);background:rgba(197,138,249,.08)}
-.mc-icon{margin-bottom:3px; display:flex; justify-content:center; color:var(--tx)}
-.mc-title{font-size:12px;font-weight:500}
-.mc-desc{font-size:10px;color:var(--tx2);margin-top:2px}
-
-/* interview setup */
+.mc-icon{margin-bottom:3px;display:flex;justify-content:center;color:var(--tx)}
+.mc-title{font-size:12px;font-weight:500}.mc-desc{font-size:10px;color:var(--tx2);margin-top:2px}
 #iSetup{display:none;background:rgba(197,138,249,.06);border:1px solid rgba(197,138,249,.15);border-radius:9px;padding:12px;margin-bottom:13px}
 #iSetup.show{display:block}
 .clist{display:flex;flex-direction:column;gap:5px;margin-top:8px;max-height:120px;overflow-y:auto}
@@ -63,7 +63,7 @@ select option{background:var(--bg3)}
 .add-row{display:flex;gap:6px;margin-top:7px}.add-row input{flex:1;padding:7px 10px;font-size:12px}
 .btn-sm{padding:7px 12px;border-radius:6px;font-family:var(--font);font-size:12px;font-weight:500;cursor:pointer;border:none;background:rgba(197,138,249,.2);color:var(--purple);white-space:nowrap;transition:background .15s}.btn-sm:hover{background:rgba(197,138,249,.3)}
 
-/* ── JOIN LOBBY (invite link) ── */
+/* ── JOIN LOBBY ── */
 #lobbyJoin{display:none;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:20px}
 .join-card{background:var(--bg2);border:1px solid var(--border);border-radius:22px;padding:24px 32px;width:min(380px,calc(100vw - 32px));box-shadow:var(--shadow)}
 .join-card h2{font-size:18px;font-weight:500;margin-bottom:3px}
@@ -99,15 +99,13 @@ select option{background:var(--bg3)}
 #vgrid.c5,#vgrid.c6{grid-template-columns:repeat(3,minmax(0,1fr))}
 .vt{background:var(--tile);border-radius:var(--r);overflow:hidden;position:relative;aspect-ratio:16/9;min-height:0;border:2px solid transparent;transition:border-color .2s;animation:fi .25s ease}
 @keyframes fi{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}
-.vt.spk{border-color:#00c853}
 .vt.ie-tile{border-color:rgba(197,138,249,.65)!important}
 .vt video{width:100%;height:100%;object-fit:cover;display:block}
 .vt.local video{transform:scaleX(-1)}
 .tov{position:absolute;bottom:0;left:0;right:0;padding:9px 11px 8px;background:linear-gradient(transparent,rgba(0,0,0,.65));display:flex;align-items:flex-end;justify-content:space-between}
 .tname{font-size:12px;font-weight:500;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.5);display:flex;align-items:center;gap:5px;flex-wrap:wrap}
 .rtag{font-size:9px;padding:1px 6px;border-radius:10px;font-weight:600}
-.rtag.ie{background:rgba(197,138,249,.75);color:#fff}
-.rtag.ir{background:rgba(138,180,248,.75);color:#fff}
+.rtag.ie{background:rgba(197,138,249,.75);color:#fff}.rtag.ir{background:rgba(138,180,248,.75);color:#fff}
 .micon{display:none;background:rgba(234,67,53,.9);border-radius:50%;width:18px;height:18px;align-items:center;justify-content:center}
 .micon.on{display:flex}
 .tav{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg3)}
@@ -120,7 +118,6 @@ select option{background:var(--bg3)}
 .sp.open{display:flex}
 .ph{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:500;flex-shrink:0}
 .pcl{background:none;border:none;color:var(--tx2);cursor:pointer;padding:3px;border-radius:50%;font-size:15px;transition:background .15s}.pcl:hover{background:var(--bg3)}
-
 #chatP{width:265px}
 #chatMsgs{flex:1;overflow-y:auto;padding:9px;display:flex;flex-direction:column;gap:9px;scrollbar-width:thin;scrollbar-color:var(--bg3) transparent}
 .cmsg{display:flex;flex-direction:column;gap:2px}
@@ -129,7 +126,6 @@ select option{background:var(--bg3)}
 .cin{padding:7px;border-top:1px solid var(--border);display:flex;gap:6px;align-items:flex-end}
 .cin input{flex:1;border-radius:20px;padding:8px 11px;font-size:13px;border:none}
 .csend{background:#1a73e8;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s}.csend:hover{background:#1557b0}.csend svg{width:15px;height:15px;fill:#fff}
-
 #trP{width:300px}
 .ttbar{display:flex;gap:5px;padding:7px 11px;border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
 .tbt{display:flex;align-items:center;gap:3px;padding:5px 9px;border-radius:6px;font-family:var(--font);font-size:11px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--tx2);transition:all .15s;white-space:nowrap}
@@ -144,7 +140,6 @@ select option{background:var(--bg3)}
 .tret{font-size:10px;color:var(--tx2);margin-left:auto}.tretx{font-size:12px;color:var(--tx);line-height:1.4}
 .tremp{text-align:center;color:var(--tx2);font-size:13px;padding:20px;line-height:1.6}
 .rh{display:flex;align-items:center;gap:7px;padding:9px 11px;background:rgba(129,201,149,.08);border-bottom:1px solid rgba(129,201,149,.12);font-size:11px;color:var(--green);flex-shrink:0}
-
 #ppP{width:235px}
 #ppList{flex:1;overflow-y:auto;padding:5px;scrollbar-width:thin}
 .ppi{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:7px;transition:background .15s}.ppi:hover{background:var(--bg3)}
@@ -176,9 +171,9 @@ select option{background:var(--bg3)}
 #waitB.on{display:flex}
 .wspinner{width:38px;height:38px;border:3px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .9s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-.wname{font-size:19px;font-weight:500}.wtxt{font-size:13px;color:var(--tx2); text-align:center; line-height:1.5;}
+.wname{font-size:19px;font-weight:500}.wtxt{font-size:13px;color:var(--tx2);text-align:center;line-height:1.5;}
 
-/* ── AI MODAL ── */
+/* ── AI MODAL (인앱) ── */
 #aiM{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:300;align-items:center;justify-content:center;padding:20px}
 #aiM.open{display:flex}
 .mbox{background:var(--bg2);border:1px solid var(--border);border-radius:20px;width:min(680px,100%);max-height:88vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.6)}
@@ -211,6 +206,17 @@ select option{background:var(--bg3)}
 .verd.g{background:rgba(129,201,149,.15);color:var(--green);border:1px solid rgba(129,201,149,.25)}
 .verd.h{background:rgba(253,214,99,.15);color:var(--yellow);border:1px solid rgba(253,214,99,.25)}
 .verd.r{background:rgba(242,139,130,.15);color:var(--red);border:1px solid rgba(242,139,130,.25)}
+/* 키워드 태그 */
+.kwtags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.kwtag{background:rgba(138,180,248,.12);border:1px solid rgba(138,180,248,.25);border-radius:20px;padding:3px 11px;font-size:11px;color:var(--blue);font-weight:500}
+/* 위험 감지 카드 */
+.risk-card{background:rgba(242,139,130,.06);border:1px solid rgba(242,139,130,.2);border-radius:9px;padding:11px;margin-bottom:6px}
+.risk-label{font-size:11px;font-weight:600;color:var(--red);margin-bottom:4px;display:flex;align-items:center;gap:5px}
+.risk-lv{font-size:10px;padding:1px 7px;border-radius:10px;font-weight:600}
+.risk-lv.low{background:rgba(129,201,149,.15);color:var(--green);border:1px solid rgba(129,201,149,.3)}
+.risk-lv.mid{background:rgba(253,214,99,.15);color:var(--yellow);border:1px solid rgba(253,214,99,.3)}
+.risk-lv.high{background:rgba(242,139,130,.15);color:var(--red);border:1px solid rgba(242,139,130,.3)}
+.risk-ev{font-size:11px;color:var(--tx2);line-height:1.5;font-style:italic}
 .api-box{background:rgba(138,180,248,.05);border:1px solid rgba(138,180,248,.12);border-radius:12px;padding:16px 18px}
 .api-box h4{font-size:14px;font-weight:600;margin-bottom:11px}
 .api-opt{background:var(--bg3);border-radius:9px;padding:12px 14px;margin-bottom:9px;border:1px solid var(--border)}
@@ -227,6 +233,32 @@ select option{background:var(--bg3)}
 .mbt{padding:8px 16px;border-radius:8px;font-family:var(--font);font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .15s}
 .mbt.p{background:#1a73e8;color:#fff}.mbt.p:hover{background:#1557b0}
 .mbt.s{background:var(--bg3);color:var(--tx);border:1px solid var(--border)}.mbt.s:hover{background:rgba(255,255,255,.06)}
+
+/* ── 종료 후 결과 모달 ── */
+#endM{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:900;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(6px)}
+#endM.open{display:flex}
+.endbox{background:var(--bg2);border:1px solid var(--border);border-radius:22px;width:min(720px,100%);max-height:92vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.7)}
+.endtop{padding:18px 22px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:linear-gradient(135deg,rgba(197,138,249,.08),rgba(138,180,248,.06))}
+.endtop-l{display:flex;flex-direction:column;gap:3px}
+.endtop-title{font-size:16px;font-weight:600;display:flex;align-items:center;gap:8px}
+.endtop-sub{font-size:12px;color:var(--tx2)}
+.endtop-r{display:flex;gap:8px;align-items:center}
+/* 탭 */
+.end-tabs{display:flex;gap:2px;padding:10px 22px 0;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--bg)}
+.etab{padding:8px 16px;font-size:13px;font-weight:500;cursor:pointer;border:none;background:none;color:var(--tx2);border-bottom:2px solid transparent;transition:all .15s;font-family:var(--font)}
+.etab.act{color:var(--blue);border-bottom-color:var(--blue)}
+.etab.act.pu{color:var(--purple);border-bottom-color:var(--purple)}
+/* 탭 내용 */
+.end-panel{display:none;flex:1;overflow-y:auto;padding:18px 22px;scrollbar-width:thin;scrollbar-color:var(--bg3) transparent}
+.end-panel.act{display:block}
+/* PDF/종료 버튼 */
+.pdfbtn{display:flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-family:var(--font);font-size:13px;font-weight:500;cursor:pointer;border:none;background:linear-gradient(135deg,#ea4335,#c5221f);color:#fff;transition:opacity .15s;white-space:nowrap}
+.pdfbtn:hover{opacity:.88}
+.pdfbtn svg{width:14px;height:14px;fill:white;flex-shrink:0}
+.closebtn{padding:8px 18px;border-radius:8px;font-family:var(--font);font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--bg3);color:var(--tx);transition:background .15s}
+.closebtn:hover{background:rgba(255,255,255,.06)}
+.end-foot{padding:12px 22px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:space-between;align-items:center;flex-shrink:0}
+.end-foot-r{display:flex;gap:8px}
 
 /* ── INVITE MODAL ── */
 #invM{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:300;align-items:center;justify-content:center;padding:20px}
@@ -263,16 +295,12 @@ select option{background:var(--bg3)}
 .endb .ci2{background:#ea4335!important;border-color:transparent!important}
 .endb:hover .ci2{background:#c5221f!important}
 .cbdg{position:absolute;top:-2px;right:-2px;background:var(--red);border-radius:50%;width:15px;height:15px;font-size:9px;font-weight:700;display:none;align-items:center;justify-content:center;color:#fff}
-
-/* filmstrip */
 #fs{width:125px;display:none;flex-direction:column;gap:5px;overflow-y:auto;padding:4px 0;flex-shrink:0;scrollbar-width:thin}
 #fs.open{display:flex}
 .fst{width:100%;aspect-ratio:16/9;background:var(--tile);border-radius:7px;overflow:hidden;position:relative;flex-shrink:0;border:2px solid transparent;cursor:pointer;transition:border-color .15s}.fst:hover{border-color:rgba(138,180,248,.4)}
 .fst video{width:100%;height:100%;object-fit:cover}.fst.local video{transform:scaleX(-1)}
 .fsn{position:absolute;bottom:0;left:0;right:0;padding:3px 5px;background:linear-gradient(transparent,rgba(0,0,0,.7));font-size:9px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fsav{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg3);font-size:14px;font-weight:500;color:#fff}
-
-/* bg panel */
 #bgP{position:fixed;bottom:82px;left:50%;transform:translateX(-50%);background:var(--bg2);border:1px solid var(--border);border-radius:15px;padding:15px;width:280px;z-index:200;display:none;box-shadow:0 8px 32px rgba(0,0,0,.5)}
 #bgP.open{display:block}
 .bgpt{font-size:13px;font-weight:500;margin-bottom:10px}
@@ -282,12 +310,9 @@ select option{background:var(--bg3)}
 .bgo img{width:100%;height:100%;object-fit:cover}
 .bgol{font-size:9px;color:var(--tx2)}.bgo.sel .bgol{color:var(--blue)}
 .bgup{width:100%;padding:7px;background:var(--bg3);border:1px dashed rgba(255,255,255,.2);border-radius:7px;color:var(--tx2);font-size:12px;cursor:pointer;font-family:var(--font);transition:background .15s}.bgup:hover{background:rgba(255,255,255,.06)}
-
 #toast{position:fixed;bottom:82px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 14px;font-size:13px;color:var(--tx);opacity:0;pointer-events:none;transition:all .2s;z-index:400;white-space:nowrap}
 #toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
 </style>
-<!-- MediaPipe Face Mesh for Behavior Tracking -->
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/face_mesh.js" crossorigin="anonymous"></script>
 </head>
 <body>
 
@@ -314,11 +339,11 @@ select option{background:var(--bg3)}
     <label class="lbl" style="margin-bottom:8px">회의 모드</label>
     <div class="mode-sel">
       <div class="mc sel" id="mcM" onclick="selMode('m')">
-        <div class="mc-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+        <div class="mc-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
         <div class="mc-title">일반 회의</div><div class="mc-desc">음성 기록 + AI 요약</div>
       </div>
       <div class="mc" id="mcI" onclick="selMode('i')">
-        <div class="mc-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg></div>
+        <div class="mc-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg></div>
         <div class="mc-title">면접 모드</div><div class="mc-desc">+ 면접 평가 리포트</div>
       </div>
     </div>
@@ -341,7 +366,7 @@ select option{background:var(--bg3)}
   </div>
 </div>
 
-<!-- 참가자 로비 (초대 링크) -->
+<!-- 참가자 로비 -->
 <div id="lobbyJoin">
   <div class="logo" style="margin-bottom:14px">
     <svg viewBox="0 0 34 34" fill="none"><rect width="34" height="34" rx="7" fill="#1a73e8"/><path d="M5 11h15v12H5z" fill="white"/><path d="M24 14l8-4v14l-8-4v-6z" fill="white"/></svg>
@@ -381,7 +406,6 @@ select option{background:var(--bg3)}
       <div class="htime" id="htime">00:00</div>
     </div>
   </div>
-
   <div class="main">
     <div id="vgrid" class="c1"></div>
     <div id="fs"></div>
@@ -409,7 +433,6 @@ select option{background:var(--bg3)}
       <div id="trList"><div class="tremp"><div style="font-size:24px;margin-bottom:7px">🎙️</div>기록된 내용이 없습니다</div></div>
     </div>
   </div>
-
   <div class="ctrl">
     <div class="cl">
       <button class="cb" id="recBtn" onclick="togRec()">
@@ -502,7 +525,7 @@ select option{background:var(--bg3)}
   <div class="wtxt" id="wtxt">호스트의 승인을 기다리는 중입니다</div>
 </div>
 
-<!-- AI 모달 -->
+<!-- AI 인앱 모달 -->
 <div id="aiM">
   <div class="mbox">
     <div class="mhdr">
@@ -516,6 +539,54 @@ select option{background:var(--bg3)}
     <div class="mft">
       <button class="mbt s" onclick="copyAI()">📋 복사</button>
       <button class="mbt p" onclick="closeAI()">확인</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 종료 후 결과 모달 ══ -->
+<div id="endM">
+  <div class="endbox">
+    <div class="endtop">
+      <div class="endtop-l">
+        <div class="endtop-title">
+          <span>🎉</span>
+          <span id="endTitle">회의 결과</span>
+        </div>
+        <div class="endtop-sub" id="endSub">회의가 종료되었습니다. AI가 분석한 결과를 확인하세요.</div>
+      </div>
+      <div class="endtop-r">
+        <span id="endGenStatus" style="font-size:12px;color:var(--tx2)">생성 중...</span>
+      </div>
+    </div>
+    <!-- 탭 -->
+    <div class="end-tabs" id="endTabs">
+      <button class="etab act" id="etab-su" onclick="switchEndTab('su')">✨ AI 요약</button>
+      <button class="etab pu" id="etab-rp" onclick="switchEndTab('rp')" style="display:none">🎯 면접 리포트</button>
+    </div>
+    <!-- 요약 패널 -->
+    <div class="end-panel act aic" id="endPanelSu" style="font-size:13px;line-height:1.65">
+      <div style="display:flex;align-items:center;gap:10px;color:var(--tx2);padding:30px;justify-content:center">
+        <div style="width:22px;height:22px;border:2px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite"></div>
+        AI 요약 생성 중...
+      </div>
+    </div>
+    <!-- 리포트 패널 -->
+    <div class="end-panel aic" id="endPanelRp" style="font-size:13px;line-height:1.65">
+      <div style="display:flex;align-items:center;gap:10px;color:var(--tx2);padding:30px;justify-content:center">
+        <div style="width:22px;height:22px;border:2px solid var(--border);border-top-color:var(--purple);border-radius:50%;animation:spin .8s linear infinite"></div>
+        면접 리포트 생성 중...
+      </div>
+    </div>
+    <!-- 푸터 -->
+    <div class="end-foot">
+      <div style="font-size:11px;color:var(--tx2)">결과는 종료 후 사라집니다. PDF로 저장하세요.</div>
+      <div class="end-foot-r">
+        <button class="pdfbtn" onclick="downloadPDF()">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 1.5L18.5 9H13V3.5zM8 17h8v1H8v-1zm0-3h8v1H8v-1zm0-3h5v1H8v-1z"/></svg>
+          PDF 다운로드
+        </button>
+        <button class="closebtn" onclick="closeEndModal()">종료하기</button>
+      </div>
     </div>
   </div>
 </div>
@@ -559,12 +630,24 @@ const S = {
   joinTimeout:null,
   screenshots:[],
   ssInterval:null,
-  behaviorLogs: [],
-  behaviorStats: {away: 0, total: 0}
+  behaviorLogs:[],
+  behaviorStats:{away:0,total:0}
 };
 let admitRole="ie";
 let ppOpen=false,fsOpen=false;
-const DC=["커뮤니케이션","직무 열의","협업 & 태도","문제 해결력"];
+
+// ── 기본 평가 항목 (문제 해결력 → 위험 감지로 교체) ──
+const DC=["커뮤니케이션","직무 열의","협업 & 태도","위험 감지"];
+
+// ── 위험 감지 평가 기준 (AI 프롬프트에 활용) ──
+const RISK_CRITERIA = `
+[위험 감지 평가 기준 — 반드시 아래 항목을 근거로 판단]
+1. 경력/성과 과장: 수치가 구체적이지 않거나 검증 불가능한 성과 주장
+2. 책임 회피 패턴: 실패 사례 언급 시 타인·환경 탓을 반복하는 경향
+3. 감정 조절 이상: 압박 질문 시 극도의 방어적 반응, 공격적 표현
+4. 윤리 위반 신호: 전 직장 기밀 누설, 편법 언급, 비윤리적 관행 정상화
+5. 자기 인식 부족: 개선점 질문에 답을 회피하거나 단점 없다고 주장
+위험도 수준: 낮음(1-2) / 보통(3) / 높음(4-5)으로 score 설정. evidence에 구체적 발화 인용 필수.`;
 
 // ── 초대 링크 감지 ──
 (function(){
@@ -587,9 +670,7 @@ async function initPV(vid,nc,av){
     document.getElementById(vid).srcObject=s;
     document.getElementById(nc).style.display="none";
     window["_pv_"+vid]=s;
-  }catch(e){
-    console.warn("카메라 권한 거부 또는 장치 없음:", e);
-  }
+  }catch(e){console.warn("카메라 권한 거부:", e);}
 }
 initPV("pv","ncm","lav");
 
@@ -612,30 +693,17 @@ async function createRoom(){
   const u=document.getElementById("uname").value.trim();
   if(!u){toast("이름을 입력하세요");return;}
   if(S.mode==="i"&&!S.criteria.length){toast("인재상 항목을 추가하세요");return;}
-  
-  const btn = document.getElementById("btnCreate");
-  const originalText = btn.innerHTML;
-  btn.innerHTML = "방 생성 중...";
-  btn.disabled = true;
-
-  try {
+  const btn=document.getElementById("btnCreate");
+  btn.innerHTML="방 생성 중...";btn.disabled=true;
+  try{
     const res=await fetch(`${SRV}/create-room`);
-    if(!res.ok) throw new Error("서버 응답 오류 (상태코드: " + res.status + ")");
-    
+    if(!res.ok) throw new Error("서버 응답 오류");
     const data=await res.json();
-    if(!data.roomId) throw new Error("방 ID를 받아오지 못했습니다.");
-    
-    S.isHost=true;
-    await enter(data.roomId,u);
-  } catch(e) {
-    console.error(e);
-    toast("회의 생성에 실패했습니다. 백엔드 서버 상태를 확인해주세요.");
-  } finally {
-    btn.innerHTML = originalText;
-    btn.disabled = false;
-  }
+    if(!data.roomId) throw new Error("방 ID 없음");
+    S.isHost=true;await enter(data.roomId,u);
+  }catch(e){toast("회의 생성 실패. 서버를 확인하세요.");}
+  finally{btn.innerHTML=`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" style="vertical-align:middle;margin-right:5px;margin-bottom:1px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>새 회의 만들기`;btn.disabled=false;}
 }
-
 async function joinRoom(){
   const u=document.getElementById("uname").value.trim();
   const code=document.getElementById("rcode").value.trim().toLowerCase();
@@ -643,7 +711,6 @@ async function joinRoom(){
   if(!code){toast("초대 코드를 입력하세요");return;}
   S.isHost=false;await enter(code,u);
 }
-
 async function joinFromLink(){
   const u=document.getElementById("uname2").value.trim();
   const code=new URLSearchParams(location.search).get("room")||document.getElementById("rcode").value.trim().toLowerCase();
@@ -657,47 +724,34 @@ async function enter(roomId,username){
   try{
     S.localStream=await navigator.mediaDevices.getUserMedia({video:true,audio:true});
   }catch(e){
-    try{
-      S.localStream=await navigator.mediaDevices.getUserMedia({audio:true});
-      toast("카메라 권한이 없어 마이크만 사용하여 참가합니다.");
-    }catch(e2){
-      S.localStream=new MediaStream();
-      toast("카메라 및 마이크 권한이 없어 기본 상태로 참가합니다.");
-    }
+    try{S.localStream=await navigator.mediaDevices.getUserMedia({audio:true});toast("마이크만 연결됨");}
+    catch(e2){S.localStream=new MediaStream();toast("카메라/마이크 없음");}
   }
-  
   if(window._pv_pv)window._pv_pv.getTracks().forEach(t=>t.stop());
-  
   document.getElementById("lobby").style.display="none";
   document.getElementById("lobbyJoin").style.display="none";
   document.getElementById("app").style.display="flex";
   document.getElementById("hrid").textContent=roomId;
-  
   if(!S.isHost){["recBtn","trBtn","invBtn"].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display="none";});}
   const mb=document.getElementById("mbadge");
   if(S.mode==="i"){mb.textContent="🎯 면접 모드";mb.className="mbadge iv";if(S.isHost)document.getElementById("rpBtn").style.display="flex";}
-  
   addTile("local",username,S.localStream,true);
   S.t0=Date.now();setInterval(updTimer,1000);
-  
   connectSock(roomId,username);
-  
   if(!S.isHost){
     document.getElementById("wname").textContent=roomId;
     document.getElementById("waitB").classList.add("on");
-    
-    // (Goal 1) 10초 내로 호스트의 응답(admit/방참가유저)이 없으면 종료/없는방 처리
-    S.joinTimeout = setTimeout(() => {
-       if(S.peers.size === 0 && S.pnames.size === 0) {
-           document.getElementById("wspinner").style.display = "none";
-           document.getElementById("wname").innerHTML = `<div style="font-size:40px; margin-bottom:10px">🚫</div>`;
-           document.getElementById("wtxt").innerHTML = `채팅이 종료되었거나<br>존재하지 않는 방입니다.<br><button onclick="location.href=location.pathname" style="margin-top:15px;padding:8px 16px;border-radius:8px;background:#1a73e8;color:white;border:none;cursor:pointer">메인 화면으로</button>`;
-       }
-    }, 10000);
+    S.joinTimeout=setTimeout(()=>{
+      if(S.peers.size===0&&S.pnames.size===0){
+        document.getElementById("wspinner").style.display="none";
+        document.getElementById("wname").innerHTML=`<div style="font-size:40px;margin-bottom:10px">🚫</div>`;
+        document.getElementById("wtxt").innerHTML=`채팅이 종료되었거나<br>존재하지 않는 방입니다.<br><button onclick="location.href=location.pathname" style="margin-top:15px;padding:8px 16px;border-radius:8px;background:#1a73e8;color:white;border:none;cursor:pointer">메인 화면으로</button>`;
+      }
+    },10000);
   }
 }
 
-// ── 초대 모달 ──
+// ── 초대 ──
 function showInv(){
   const link=`${location.origin}${location.pathname}?room=${S.roomId}`;
   document.getElementById("invUrl").textContent=link;
@@ -709,183 +763,102 @@ function cpLink(){navigator.clipboard.writeText(`${location.origin}${location.pa
 function cpCode(){navigator.clipboard.writeText(S.roomId).then(()=>toast(`코드 복사됨: ${S.roomId}`));}
 function copyCode(){cpCode();}
 
-// ── 분산 음성 기록 (STT) ──
-function togRec(){
-  if(S.isHost){
-    if(S.recOn) stopRec(false);
-    else startRec(false);
+// ── 스크린샷: 전체 서비스 화면 캡처 ──
+async function captureScreenshot(){
+  if(S.screenshots.length>=3)return;
+  try{
+    const canvas=await html2canvas(document.getElementById("app"),{
+      useCORS:true,scale:0.6,logging:false,
+      ignoreElements:(el)=>el.id==="bgP"||el.id==="admitM"||el.id==="aiM"
+    });
+    S.screenshots.push(canvas.toDataURL("image/jpeg",0.65));
+    toast(`📸 화면 캡처됨 (${S.screenshots.length}/3)`);
+  }catch(e){
+    console.warn("Screenshot error:",e);
   }
 }
 
-function startRec(isRemote = false){
-  if (S.recOn) return; 
+// ── STT ──
+function togRec(){if(S.isHost){if(S.recOn)stopRec(false);else startRec(false);}}
+function startRec(isRemote=false){
+  if(S.recOn)return;
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!SR){
-    if(!isRemote) toast("Chrome 브라우저에서만 지원됩니다");
-    return;
-  }
-  
+  if(!SR){if(!isRemote)toast("Chrome에서만 지원");return;}
   const r=new SR();
-  r.lang="ko-KR";
-  r.continuous=true;
-  r.interimResults=true;
-  r.maxAlternatives=1; // (Goal 2) 정확성을 위해 가장 확실한 1개 결과만 반환
-  
+  r.lang="ko-KR";r.continuous=true;r.interimResults=true;r.maxAlternatives=1;
   r.onresult=e=>{
     let fin="",int="";
     for(let i=e.resultIndex;i<e.results.length;i++){
-      if(e.results[i].isFinal) fin+=e.results[i][0].transcript;
+      if(e.results[i].isFinal)fin+=e.results[i][0].transcript;
       else int+=e.results[i][0].transcript;
     }
     const cap=document.getElementById("cap-local");
     if(cap){cap.textContent=int||fin;cap.classList.toggle("on",!!(int||fin));}
-    
-    if(fin.trim() && S.mic){
-      if (S.isHost) {
-        const en={speaker:S.username,text:fin.trim(),ts:new Date(),isLocal:true,sid:"local"};
-        S.tr.push(en);
-        addTrEntry(en);
-      } else {
-        if(S.socket) S.socket.emit("chat-message", {roomId: S.roomId, message: "SYS_TR:" + fin.trim()});
-      }
+    if(fin.trim()&&S.mic){
+      if(S.isHost){const en={speaker:S.username,text:fin.trim(),ts:new Date(),isLocal:true,sid:"local"};S.tr.push(en);addTrEntry(en);}
+      else{if(S.socket)S.socket.emit("chat-message",{roomId:S.roomId,message:"SYS_TR:"+fin.trim()});}
       setTimeout(()=>{const c=document.getElementById("cap-local");if(c){c.textContent="";c.classList.remove("on");}},1800);
     }
   };
-  
-  r.onerror=e=>{
-    if(e.error === 'not-allowed' || e.error === 'service-not-allowed'){
-      if(!isRemote) toast(`STT 권한 오류: ${e.error}`);
-      stopRec(isRemote);
-    }
-  };
-  
-  r.onend=()=>{
-    if(S.recOn) {
-      setTimeout(()=> { if (S.recOn && S.recog) { try{S.recog.start();}catch(err){} } }, 300);
-    }
-  };
-
-  try {
-    r.start();
-    S.recog=r;
-    S.recOn=true;
-    
+  r.onerror=e=>{if(e.error==="not-allowed"||e.error==="service-not-allowed"){if(!isRemote)toast(`STT 오류: ${e.error}`);stopRec(isRemote);}};
+  r.onend=()=>{if(S.recOn)setTimeout(()=>{if(S.recOn&&S.recog)try{S.recog.start();}catch(err){}},300);};
+  try{
+    r.start();S.recog=r;S.recOn=true;
     document.getElementById("recInd").classList.add("on");
-    
-    if(S.isHost) {
+    if(S.isHost){
       document.getElementById("recBtn").classList.add("rec");
       document.getElementById("recLbl").textContent="기록 중단";
       document.getElementById("rh").style.display="none";
-      toast("🎙 음성 기록을 시작합니다");
-      
-      S.socket?.emit("chat-message", {roomId: S.roomId, message: "SYS_CMD:START_REC"});
-      
-      // (Goal 4) 자동 스크린샷 타이머 시작 (15초 간격, 3장)
-      S.screenshots = [];
-      S.ssInterval = setInterval(() => {
-          if(S.screenshots.length >= 3) {
-              clearInterval(S.ssInterval);
-              return;
-          }
-          captureScreenshot();
-      }, 15000); 
-    } else {
-      toast("🎙 호스트가 음성 기록을 시작했습니다");
-    }
-  } catch(err) {
-    console.warn("STT Start Error", err);
-  }
+      toast("🎙 음성 기록 시작");
+      S.socket?.emit("chat-message",{roomId:S.roomId,message:"SYS_CMD:START_REC"});
+      S.screenshots=[];
+      S.ssInterval=setInterval(()=>{if(S.screenshots.length>=3){clearInterval(S.ssInterval);return;}captureScreenshot();},15000);
+    }else{toast("🎙 호스트가 기록 시작");}
+  }catch(err){console.warn("STT Start Error",err);}
 }
-
-function stopRec(isRemote = false){
-  if (!S.recOn) return;
-  S.recOn = false;
-  S.recog?.stop();
-  S.recog = null;
-  
-  if(S.ssInterval) clearInterval(S.ssInterval);
-  
+function stopRec(isRemote=false){
+  if(!S.recOn)return;
+  S.recOn=false;S.recog?.stop();S.recog=null;
+  if(S.ssInterval)clearInterval(S.ssInterval);
   const c=document.getElementById("cap-local");if(c){c.textContent="";c.classList.remove("on");}
   document.getElementById("recInd").classList.remove("on");
-
-  if(S.isHost) {
+  if(S.isHost){
     document.getElementById("recBtn").classList.remove("rec");
     document.getElementById("recLbl").textContent="음성 기록";
-    toast("음성 기록을 중단했습니다");
-    S.socket?.emit("chat-message", {roomId: S.roomId, message: "SYS_CMD:STOP_REC"});
-  } else {
-    toast("호스트가 음성 기록을 중단했습니다");
-  }
+    toast("음성 기록 중단");
+    S.socket?.emit("chat-message",{roomId:S.roomId,message:"SYS_CMD:STOP_REC"});
+  }else{toast("호스트가 기록 중단");}
 }
 
-function captureScreenshot() {
-  if(S.screenshots.length >= 3) return;
-  const videos = document.querySelectorAll('#vgrid video');
-  if(!videos.length) return;
-  
-  let targetVideo = videos[0];
-  if(S.ieId) {
-      const ieVid = document.getElementById(`vid-${S.ieId}`);
-      if(ieVid) targetVideo = ieVid;
-  }
-  
-  if (targetVideo.videoWidth === 0) return;
-  
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d");
-  canvas.width = targetVideo.videoWidth;
-  canvas.height = targetVideo.videoHeight;
-  ctx.drawImage(targetVideo, 0, 0, canvas.width, canvas.height);
-  
-  S.screenshots.push(canvas.toDataURL('image/jpeg', 0.6));
-  toast(`📸 자동 스크린샷 캡처됨 (${S.screenshots.length}/3)`);
-}
-
-// ── 면접자 행동 및 시선 추적 (AI) ──
-async function initFaceMesh() {
-  if(typeof FaceMesh === 'undefined') return;
-  try {
-      const faceMesh = new FaceMesh({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${file}`});
-      faceMesh.setOptions({maxNumFaces: 1, refineLandmarks: false, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5});
-      faceMesh.onResults((results) => {
-          S.behaviorStats.total++;
-          if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
-              const lm = results.multiFaceLandmarks[0];
-              const nose = lm[1];
-              const left = lm[33];
-              const right = lm[263];
-              const ratio = (nose.x - left.x) / (right.x - left.x);
-              // (Goal 5) 코 위치 비율에 따라 고개가 크게 돌아갔는지 확인
-              if (ratio < 0.25 || ratio > 0.75) {
-                  S.behaviorStats.away++;
-              }
-          }
-      });
-      
-      const video = document.getElementById('vid-local');
-      async function fmLoop() {
-          if(S.ieId === 'local' && video.readyState >= 2) {
-              await faceMesh.send({image: video});
-          }
-          if(S.ieId === 'local') requestAnimationFrame(fmLoop);
+// ── FaceMesh ──
+async function initFaceMesh(){
+  if(typeof FaceMesh==="undefined")return;
+  try{
+    const faceMesh=new FaceMesh({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${f}`});
+    faceMesh.setOptions({maxNumFaces:1,refineLandmarks:false,minDetectionConfidence:.5,minTrackingConfidence:.5});
+    faceMesh.onResults(results=>{
+      S.behaviorStats.total++;
+      if(results.multiFaceLandmarks?.[0]){
+        const lm=results.multiFaceLandmarks[0];
+        const ratio=(lm[1].x-lm[33].x)/(lm[263].x-lm[33].x);
+        if(ratio<.25||ratio>.75)S.behaviorStats.away++;
       }
-      fmLoop();
-      
-      // 10초마다 시선 이탈률 평가 후 전송
-      setInterval(() => {
-          if(S.ieId === 'local' && S.behaviorStats.total > 0 && S.socket) {
-              const awayRate = S.behaviorStats.away / S.behaviorStats.total;
-              if (awayRate > 0.3) {
-                  S.socket.emit("chat-message", {roomId: S.roomId, message: "SYS_BEHAVIOR:시선 이탈 잦음(주의 산만)"});
-              } else {
-                  S.socket.emit("chat-message", {roomId: S.roomId, message: "SYS_BEHAVIOR:시선 안정적(집중)"});
-              }
-              S.behaviorStats = { away: 0, total: 0 }; 
-          }
-      }, 10000);
-  } catch(e) {
-      console.warn("FaceMesh Init Error", e);
-  }
+    });
+    const video=document.getElementById("vid-local");
+    async function fmLoop(){
+      if(S.ieId==="local"&&video.readyState>=2)await faceMesh.send({image:video});
+      if(S.ieId==="local")requestAnimationFrame(fmLoop);
+    }
+    fmLoop();
+    setInterval(()=>{
+      if(S.ieId==="local"&&S.behaviorStats.total>0&&S.socket){
+        const rate=S.behaviorStats.away/S.behaviorStats.total;
+        const msg=rate>.3?"SYS_BEHAVIOR:시선 이탈 잦음(주의 산만)":"SYS_BEHAVIOR:시선 안정적(집중)";
+        S.socket.emit("chat-message",{roomId:S.roomId,message:msg});
+        S.behaviorStats={away:0,total:0};
+      }
+    },10000);
+  }catch(e){console.warn("FaceMesh Error",e);}
 }
 
 // ── 대화록 ──
@@ -931,8 +904,7 @@ function togIE(sid){
   if(S.ieId)S.proles.set(sid,"ie");else S.proles.set(sid,"part");
   document.querySelectorAll(".vt").forEach(t=>{const id=t.id.replace("tile-","");t.classList.toggle("ie-tile",id===S.ieId);});
   rebuildTrColors();rebuildPP();
-  
-  if (sid === 'local') initFaceMesh();
+  if(sid==="local")initFaceMesh();
 }
 
 // ── 입장 허가 ──
@@ -943,24 +915,17 @@ function selAR(r){
 }
 function admitU(){
   if(!S.pending||!S.socket)return;
-  const{sid, username}=S.pending;
+  const{sid,username}=S.pending;
   const role=S.mode==="i"?admitRole:"part";
-  
   S.socket.emit("admit-user",{roomId:S.roomId,socketId:sid,role});
-  
   if(role==="ie")S.ieId=sid;
   S.proles.set(sid,role);
   document.getElementById("admitM").classList.remove("open");
-
-  createPC(sid, username, true);
+  createPC(sid,username,true);
   toast(`${username}님이 참가했습니다`);
-  updCnt(); if(ppOpen)rebuildPP();
-
+  updCnt();if(ppOpen)rebuildPP();
   S.pending=null;
-  
-  if (S.recOn) {
-      setTimeout(() => { S.socket.emit("chat-message", {roomId: S.roomId, message: "SYS_CMD:START_REC"}); }, 1500);
-  }
+  if(S.recOn)setTimeout(()=>{S.socket.emit("chat-message",{roomId:S.roomId,message:"SYS_CMD:START_REC"});},1500);
 }
 function denyU(){
   if(!S.pending||!S.socket)return;
@@ -970,44 +935,30 @@ function denyU(){
 }
 
 // ── SOCKET ──
-const ICE={iceServers:[{urls:"stun:stun.l.google.com:19302"},{urls:"stun:stun1.l.google.com:19302"}]};
+const ICE_CONF={iceServers:[{urls:"stun:stun.l.google.com:19302"},{urls:"stun:stun1.l.google.com:19302"}]};
 function connectSock(roomId,username){
   S.socket=io(SRV,{transports:["websocket","polling"]});
   const s=S.socket;
-  
   s.emit("join-room",{roomId,username,isHost:S.isHost});
-
   s.on("room-users",async users=>{
-    if (S.isHost) {
-        for(const u of users) await createPC(u.socketId,u.username,true);
-        updCnt();
-    } else {
-        if(users.length > 0) clearTimeout(S.joinTimeout);
-        for(const u of users) S.pnames.set(u.socketId, u.username);
-    }
+    if(S.isHost){for(const u of users)await createPC(u.socketId,u.username,true);updCnt();}
+    else{if(users.length>0)clearTimeout(S.joinTimeout);for(const u of users)S.pnames.set(u.socketId,u.username);}
   });
-
   s.on("user-joined",({socketId,username,role})=>{
     S.pnames.set(socketId,username);
     if(role)S.proles.set(socketId,role);
-
-    if (S.isHost) {
-        if (S.peers.has(socketId)) return;
-        S.pending={sid:socketId,username};
-        document.getElementById("aname").textContent=username;
-        const iv=S.mode==="i";
-        document.getElementById("aroleSec").style.display=iv?"block":"none";
-        admitRole="ie";selAR("ie");
-        document.getElementById("admitM").classList.add("open");
-    } else {
-        if (!document.getElementById("waitB").classList.contains("on")) {
-           createPC(socketId, username, false);
-           toast(`${username}님이 참가했습니다`);
-           updCnt(); if(ppOpen)rebuildPP();
-        }
+    if(S.isHost){
+      if(S.peers.has(socketId))return;
+      S.pending={sid:socketId,username};
+      document.getElementById("aname").textContent=username;
+      const iv=S.mode==="i";
+      document.getElementById("aroleSec").style.display=iv?"block":"none";
+      admitRole="ie";selAR("ie");
+      document.getElementById("admitM").classList.add("open");
+    }else{
+      if(!document.getElementById("waitB").classList.contains("on")){createPC(socketId,username,false);toast(`${username}님이 참가`);updCnt();if(ppOpen)rebuildPP();}
     }
   });
-
   s.on("user-waiting",({socketId,username})=>{
     if(!S.isHost)return;
     S.pending={sid:socketId,username};
@@ -1017,43 +968,30 @@ function connectSock(roomId,username){
     admitRole="ie";selAR("ie");
     document.getElementById("admitM").classList.add("open");
   });
-
   s.on("admitted",({role})=>{
     clearTimeout(S.joinTimeout);
     document.getElementById("waitB").classList.remove("on");
-    if(role==="ie") {
-        S.ieId="local";
-        initFaceMesh();
-    }
-    
-    for (const [sid, uname] of S.pnames.entries()) {
-        if (!S.peers.has(sid)) createPC(sid, uname, true);
-    }
+    if(role==="ie"){S.ieId="local";initFaceMesh();}
+    for(const[sid,uname]of S.pnames.entries()){if(!S.peers.has(sid))createPC(sid,uname,true);}
   });
-
   s.on("denied",()=>{
     clearTimeout(S.joinTimeout);
     document.getElementById("waitB").classList.remove("on");
     toast("입장이 거절됐습니다");
     setTimeout(()=>location.href=location.pathname,1500);
   });
-
   s.on("offer",async({from,username,offer})=>{
-    if (!S.isHost && document.getElementById("waitB").classList.contains("on")) {
-        clearTimeout(S.joinTimeout);
-        document.getElementById("waitB").classList.remove("on");
-        toast("호스트가 입장을 허가했습니다.");
-        for (const [sid, uname] of S.pnames.entries()) {
-            if (sid !== from && !S.peers.has(sid)) createPC(sid, uname, true);
-        }
+    if(!S.isHost&&document.getElementById("waitB").classList.contains("on")){
+      clearTimeout(S.joinTimeout);
+      document.getElementById("waitB").classList.remove("on");
+      toast("호스트가 입장을 허가했습니다.");
+      for(const[sid,uname]of S.pnames.entries()){if(sid!==from&&!S.peers.has(sid))createPC(sid,uname,true);}
     }
-
     S.pnames.set(from,username);let pc=S.peers.get(from);if(!pc)pc=await createPC(from,username,false);
     await pc.setRemoteDescription(new RTCSessionDescription(offer));
     const ans=await pc.createAnswer();await pc.setLocalDescription(ans);
     s.emit("answer",{to:from,answer:ans});
   });
-  
   s.on("answer",async({from,answer})=>{const pc=S.peers.get(from);if(pc)await pc.setRemoteDescription(new RTCSessionDescription(answer));});
   s.on("ice-candidate",({from,candidate})=>{const pc=S.peers.get(from);if(pc&&candidate)pc.addIceCandidate(new RTCIceCandidate(candidate));});
   s.on("user-left",({socketId})=>{
@@ -1063,37 +1001,18 @@ function connectSock(roomId,username){
     remTile(socketId);toast(`${un}님이 나갔습니다`);updCnt();updGrid();if(ppOpen)rebuildPP();
   });
   s.on("peer-media-state",({socketId,audio})=>{document.getElementById(`mi-${socketId}`)?.classList.toggle("on",!audio);});
-  
   s.on("chat-message",({socketId,username,message,timestamp})=>{
-    // --- STT / 백그라운드 메시지 처리 ---
-    if(message === "SYS_CMD:START_REC") {
-      if(!S.isHost) startRec(true); return;
-    }
-    if(message === "SYS_CMD:STOP_REC") {
-      if(!S.isHost) stopRec(true); return;
-    }
-    if(message === "SYS_CMD:END_MEETING") {
-      if(!S.isHost) {
-        toast("호스트가 회의를 종료했습니다. 2초 뒤 퇴장합니다.");
-        setTimeout(() => { endCallLocal(); }, 2000);
-      }
+    if(message==="SYS_CMD:START_REC"){if(!S.isHost)startRec(true);return;}
+    if(message==="SYS_CMD:STOP_REC"){if(!S.isHost)stopRec(true);return;}
+    if(message==="SYS_CMD:END_MEETING"){
+      if(!S.isHost){toast("호스트가 회의를 종료했습니다. 2초 뒤 퇴장합니다.");setTimeout(()=>endCallLocal(),2000);}
       return;
     }
-    if(message.startsWith("SYS_TR:")) {
-      if(S.isHost && S.recOn) {
-        const text = message.substring(7);
-        const en = {speaker: username, text: text, ts: new Date(timestamp), isLocal: false, sid: socketId};
-        S.tr.push(en); addTrEntry(en);
-      }
+    if(message.startsWith("SYS_TR:")){
+      if(S.isHost&&S.recOn){const text=message.substring(7);const en={speaker:username,text,ts:new Date(timestamp),isLocal:false,sid:socketId};S.tr.push(en);addTrEntry(en);}
       return;
     }
-    if(message.startsWith("SYS_BEHAVIOR:")) {
-      const log = message.substring(13);
-      S.behaviorLogs.push(`[${new Date(timestamp).toLocaleTimeString("ko-KR")}] ${username}: ${log}`);
-      return;
-    }
-    // ------------------------------------
-
+    if(message.startsWith("SYS_BEHAVIOR:")){S.behaviorLogs.push(`[${new Date(timestamp).toLocaleTimeString("ko-KR")}] ${username}: ${message.substring(13)}`);return;}
     addChat(username,message,timestamp,socketId===s.id);
     if(!S.chatOpen){S.unread++;const b=document.getElementById("cbdg");b.style.display="flex";b.textContent=S.unread;}
   });
@@ -1101,7 +1020,7 @@ function connectSock(roomId,username){
 
 // ── PEER ──
 async function createPC(sid,username,init){
-  const pc=new RTCPeerConnection(ICE);
+  const pc=new RTCPeerConnection(ICE_CONF);
   S.peers.set(sid,pc);S.pnames.set(sid,username);
   S.localStream.getTracks().forEach(t=>pc.addTrack(t,S.localStream));
   pc.onicecandidate=({candidate})=>{if(candidate)S.socket.emit("ice-candidate",{to:sid,candidate});};
@@ -1176,14 +1095,13 @@ function togCam(){
   const av=document.getElementById("av-local");if(av)av.style.display=S.cam?"none":"flex";
 }
 async function togSS(){
-  const btn=document.getElementById("ssBtn");
   if(!S.ss){
     try{
       S.screenStream=await navigator.mediaDevices.getDisplayMedia({video:true,audio:true});
       const t=S.screenStream.getVideoTracks()[0];
       S.peers.forEach(pc=>pc.getSenders().find(s=>s.track?.kind==="video")?.replaceTrack(t));
       document.getElementById("vid-local").srcObject=new MediaStream([t,...S.localStream.getAudioTracks()]);
-      S.ss=true;btn.classList.add("act");document.getElementById("ssBan").classList.add("on");
+      S.ss=true;document.getElementById("ssBtn").classList.add("act");document.getElementById("ssBan").classList.add("on");
       t.onended=stopSS;
     }catch(e){toast("화면 공유 취소");}
   }else stopSS();
@@ -1196,24 +1114,359 @@ function stopSS(){
   S.ss=false;document.getElementById("ssBtn").classList.remove("act");document.getElementById("ssBan").classList.remove("on");
 }
 
+// ── 종료 ──
 function endCall(){
-  if(S.isHost && S.socket) {
-      S.socket.emit("chat-message", {roomId: S.roomId, message: "SYS_CMD:END_MEETING"});
+  if(S.isHost&&S.socket)S.socket.emit("chat-message",{roomId:S.roomId,message:"SYS_CMD:END_MEETING"});
+  if(S.recOn)stopRec(false);
+  if(S.isHost){
+    // 소켓 메시지 전송 여유 후 결과 모달 표시
+    setTimeout(()=>showEndModal(),1200);
+  }else{
+    setTimeout(()=>endCallLocal(),100);
   }
-  if(S.recOn) stopRec(false);
-  
-  // 소켓 메시지가 서버로 전송될 여유 시간을 확보한 뒤 로컬 정리 (Goal 3)
-  setTimeout(() => {
-      endCallLocal();
-  }, S.isHost ? 1500 : 100);
 }
-
-function endCallLocal() {
+function endCallLocal(){
   S.localStream?.getTracks().forEach(t=>t.stop());
   S.screenStream?.getTracks().forEach(t=>t.stop());
   S.peers.forEach(pc=>pc.close());
   S.socket?.disconnect();
-  location.href = location.pathname;
+  location.href=location.pathname;
+}
+
+// ── 종료 후 결과 모달 ──
+let _endSuHtml="",_endRpHtml="",_endRpRaw="",_endSuRaw="";
+
+async function showEndModal(){
+  // 미디어 정리 (소켓은 유지)
+  S.localStream?.getTracks().forEach(t=>t.stop());
+  S.screenStream?.getTracks().forEach(t=>t.stop());
+  S.peers.forEach(pc=>pc.close());
+
+  const isInterview=S.mode==="i";
+  document.getElementById("endTitle").textContent=isInterview?"면접 결과 리포트":"회의 결과 요약";
+  document.getElementById("endSub").textContent=isInterview
+    ?"면접이 종료되었습니다. AI 분석 결과를 확인하고 PDF로 저장하세요."
+    :"회의가 종료되었습니다. AI 요약을 확인하고 PDF로 저장하세요.";
+
+  if(isInterview){
+    document.getElementById("etab-rp").style.display="flex";
+    document.getElementById("etab-rp").style.display="";
+  }
+
+  document.getElementById("endM").classList.add("open");
+  document.getElementById("endGenStatus").textContent="AI 분석 중...";
+
+  // API 키 없으면 설정 화면 표시
+  if(!AI_K){
+    document.getElementById("endPanelSu").innerHTML=buildSetupHtml("su");
+    document.getElementById("endPanelRp").innerHTML=buildSetupHtml("rp");
+    document.getElementById("endGenStatus").textContent="API 키 필요";
+    return;
+  }
+
+  // 요약 생성
+  genEndSummary();
+  if(isInterview)genEndReport();
+}
+
+async function genEndSummary(){
+  if(!S.tr.length){
+    document.getElementById("endPanelSu").innerHTML=`<div style="text-align:center;padding:40px;color:var(--tx2)">🎙️<br/><br/>기록된 대화가 없습니다</div>`;
+    return;
+  }
+  const txt=S.tr.map(e=>`[${e.ts.toLocaleTimeString("ko-KR")}] ${e.speaker}: ${e.text}`).join("\n");
+  const min=Math.floor((Date.now()-S.t0)/60000);
+  const p=`다음은 화상회의 대화록입니다. 구조화된 요약본을 작성해주세요.\n\n참가자: ${[...new Set(S.tr.map(e=>e.speaker))].join(", ")}\n진행 시간: 약 ${min}분\n\n대화록:\n${txt}\n\n형식:\n### 핵심 논의 사항\n(3~5개)\n\n### 결정된 사항\n\n### 액션 아이템\n\n### 전체 요약\n(2~3문장)`;
+  try{
+    const r=await callAI(p);
+    _endSuRaw=r;
+    _endSuHtml=buildSumHtml(r);
+    document.getElementById("endPanelSu").innerHTML=_endSuHtml;
+    document.getElementById("endGenStatus").textContent="완료";
+  }catch(e){
+    document.getElementById("endPanelSu").innerHTML=`<p style="color:var(--red)">요약 생성 실패: ${esc(e.message)}</p>`;
+  }
+}
+
+async function genEndReport(){
+  const cl=S.criteria.length?S.criteria:DC;
+  const ieEn=S.tr.filter(e=>e.sid===S.ieId||(S.ieId==="local"&&e.isLocal));
+  if(!ieEn.length){
+    document.getElementById("endPanelRp").innerHTML=`<div style="text-align:center;padding:40px;color:var(--tx2)">👤<br/><br/>면접자 발화가 없거나 면접자가 지정되지 않았습니다</div>`;
+    return;
+  }
+  const ie=ieEn[0].speaker;
+  const full=S.tr.map(e=>`[${e.ts.toLocaleTimeString("ko-KR")}] ${e.speaker}: ${e.text}`).join("\n");
+  const ieTxt=ieEn.map(e=>`[${e.ts.toLocaleTimeString("ko-KR")}] ${e.text}`).join("\n");
+  const min=Math.floor((Date.now()-S.t0)/60000);
+  const behaviorTxt=(S.behaviorLogs||[]).join("\n");
+  const p=`채용 면접 대화록 및 행동 분석 로그를 바탕으로 JSON 리포트를 생성하세요.
+
+면접자: ${ie}
+면접관: ${S.username}
+면접 시간: 약 ${min}분
+평가 항목: ${cl.join(", ")}
+
+전체 대화록:
+${full}
+
+면접자(${ie}) 발화:
+${ieTxt}
+
+면접자 시선 및 행동 로그 (AI 비전):
+${behaviorTxt||"특이사항 없음"}
+
+${RISK_CRITERIA}
+
+행동 로그를 분석하여 '태도 및 집중도' 평가에 반드시 반영하세요.
+'위험 감지' 항목은 위 기준에 따라 엄격히 평가하세요.
+
+아래 형식의 순수 JSON으로만 응답하세요 (마크다운 금지):
+{
+  "scores":[{"criterion":"항목","score":숫자(1-5),"evidence":"발화/행동 근거"}],
+  "strengths":["강점1","강점2","강점3"],
+  "keywords":["키워드1","키워드2","키워드3"],
+  "improvements":["보완1","보완2"],
+  "riskDetail":{"level":"낮음/보통/높음","factors":["위험 요인1"],"evidence":"구체적 근거"},
+  "summary":"종합평가 2~3문장",
+  "verdict":"적합 또는 보류 또는 재검토",
+  "totalScore":숫자(0-100)
+}`;
+  try{
+    const r=await callAI(p);
+    _endRpRaw=r;
+    _endRpHtml=buildRepHtml(r,ie,cl,min);
+    document.getElementById("endPanelRp").innerHTML=_endRpHtml;
+  }catch(e){
+    document.getElementById("endPanelRp").innerHTML=`<p style="color:var(--red)">리포트 생성 실패: ${esc(e.message)}</p>`;
+  }
+}
+
+function buildSetupHtml(type){
+  return `<div class="api-box" style="margin:16px 0"><h4>🔑 AI API 키 설정</h4>
+  <div class="api-opt"><div class="api-ot g">⭐ Google Gemini API <span class="fbadge">완전 무료</span></div><div class="api-od">1. <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a> → Get API key<br>2. 생성된 키 복사 후 아래 입력</div></div>
+  <select id="aiSelE" style="margin-bottom:10px"><option value="gemini">Google Gemini (무료)</option><option value="claude">Anthropic Claude</option></select>
+  <div class="api-row"><input type="text" id="apiKIE" placeholder="API 키 입력"/><button class="api-sv" onclick="saveKeyEnd()">저장 후 실행</button></div></div>`;
+}
+function saveKeyEnd(){
+  const k=document.getElementById("apiKIE")?.value?.trim();
+  const p=document.getElementById("aiSelE")?.value||"gemini";
+  if(!k){toast("API 키를 입력하세요");return;}
+  AI_K=k;AI_P=p;sessionStorage.setItem("ai_k",k);sessionStorage.setItem("ai_p",p);
+  document.getElementById("endPanelSu").innerHTML=`<div style="display:flex;align-items:center;gap:10px;color:var(--tx2);padding:30px;justify-content:center"><div style="width:22px;height:22px;border:2px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite"></div>AI 요약 생성 중...</div>`;
+  document.getElementById("endPanelRp").innerHTML=`<div style="display:flex;align-items:center;gap:10px;color:var(--tx2);padding:30px;justify-content:center"><div style="width:22px;height:22px;border:2px solid var(--border);border-top-color:var(--purple);border-radius:50%;animation:spin .8s linear infinite"></div>면접 리포트 생성 중...</div>`;
+  genEndSummary();
+  if(S.mode==="i")genEndReport();
+}
+
+function buildSumHtml(text){
+  let h=esc(text)
+    .replace(/### (.+)/g,"<h3>$1</h3>")
+    .replace(/## (.+)/g,"<h3>$1</h3>")
+    .replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>")
+    .replace(/^- (.+)/gm,"<li>$1</li>")
+    .replace(/(<li>.*<\/li>\n?)+/g,m=>`<ul>${m}</ul>`)
+    .replace(/\n{2,}/g,"</p><p>")
+    .replace(/\n/g,"<br/>");
+  return `<p>${h}</p>`;
+}
+
+function buildRepHtml(text,ie,cl,min){
+  let d;
+  try{d=JSON.parse(text.replace(/```json|```/g,"").trim());}
+  catch(e){return `<p style="color:var(--tx2);font-size:12px">파싱 오류:</p><pre style="font-size:11px;color:var(--tx2);white-space:pre-wrap;margin-top:8px">${esc(text)}</pre>`;}
+  const vc=d.verdict==="적합"?"g":d.verdict==="보류"?"h":"r";
+
+  // 스크린샷
+  const ssHtml=S.screenshots&&S.screenshots.length>0?
+    `<h3 class="pu">📸 자동 캡처 화면</h3>
+     <div style="display:flex;gap:10px;overflow-x:auto;margin-bottom:15px;padding-bottom:5px">
+       ${S.screenshots.map(s=>`<img src="${s}" style="height:90px;border-radius:8px;border:1px solid var(--border);object-fit:cover;flex-shrink:0">`).join("")}
+     </div>`:"";
+
+  // 키워드 태그
+  const kwHtml=d.keywords&&d.keywords.length?
+    `<div class="kwtags">${d.keywords.slice(0,3).map(k=>`<span class="kwtag"># ${esc(k)}</span>`).join("")}</div>`:"";
+
+  // 위험 감지 상세
+  const riskDetail=d.riskDetail;
+  const rlv=riskDetail?.level||"낮음";
+  const rlvCls=rlv==="높음"?"high":rlv==="보통"?"mid":"low";
+  const riskHtml=`<div class="risk-card">
+    <div class="risk-label">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      위험 감지 분석 <span class="risk-lv ${rlvCls}">${rlv}</span>
+    </div>
+    <div class="risk-ev">${esc(riskDetail?.evidence||"특이사항 없음")}</div>
+    ${riskDetail?.factors?.length?`<ul style="margin-top:6px;padding-left:14px">${riskDetail.factors.map(f=>`<li style="font-size:11px;color:var(--tx2);margin-bottom:3px">${esc(f)}</li>`).join("")}</ul>`:""}
+  </div>`;
+
+  return ssHtml+`
+  <h3 class="pu">👤 면접자 기본 정보</h3>
+  <div style="background:var(--bg3);border-radius:8px;padding:11px;font-size:12px;line-height:1.8;margin-bottom:11px">
+    <div><strong>면접자:</strong> ${esc(ie)}</div>
+    <div><strong>면접관:</strong> ${esc(S.username)}</div>
+    <div><strong>면접 시간:</strong> 약 ${min}분</div>
+    <div><strong>평가 항목:</strong> ${cl.map(esc).join(", ")}</div>
+  </div>
+  <h3 class="pu">📊 인재상 항목별 점수</h3>
+  <div class="sgrid">${(d.scores||[]).map(s=>`<div class="scard"><div class="sct">${esc(s.criterion)}</div><div class="scv">${s.score}<span>/5</span></div><div class="sbar"><div class="sbarf" style="width:${s.score/5*100}%"></div></div><div class="sce">"${esc(s.evidence||"")}"</div></div>`).join("")}</div>
+  <h3 class="pu">✅ 강점 분석</h3>
+  <ul>${(d.strengths||[]).map(s=>`<li>${esc(s)}</li>`).join("")}</ul>
+  ${kwHtml?`<div style="margin-top:8px;font-size:11px;color:var(--tx2);margin-bottom:4px">지원자 특징 키워드</div>${kwHtml}`:""}
+  <h3 class="pu">⚠️ 위험 감지</h3>
+  ${riskHtml}
+  <h3 class="pu">🔧 보완 영역</h3>
+  <ul>${(d.improvements||[]).map(s=>`<li>${esc(s)}</li>`).join("")}</ul>
+  <h3 class="pu">🏆 종합 평가</h3>
+  <div class="tsbox">
+    <div><div class="tsnum">${d.totalScore||0}<span>/100</span></div><div class="tslbl">인재상 부합 종합 점수</div></div>
+    <div style="flex:1;padding:0 12px;font-size:12px;color:var(--tx2);line-height:1.6">${esc(d.summary||"")}</div>
+    <span class="verd ${vc}">${esc(d.verdict||"")}</span>
+  </div>
+  <p style="font-size:11px;color:var(--tx2);margin-top:8px;line-height:1.5">⚠ 이 리포트는 AI 보조 의견입니다. 최종 채용 결정은 반드시 사람이 판단해야 합니다.</p>`;
+}
+
+// ── 탭 전환 ──
+function switchEndTab(tab){
+  ["su","rp"].forEach(t=>{
+    document.getElementById(`etab-${t}`)?.classList.toggle("act",t===tab);
+    document.getElementById(`endPanel${t.charAt(0).toUpperCase()+t.slice(1)}`)?.classList.toggle("act",t===tab);
+  });
+}
+
+// ── PDF 다운로드 ──
+async function downloadPDF(){
+  const{jsPDF}=window.jspdf;
+  if(!jsPDF){toast("PDF 라이브러리 로드 실패");return;}
+  toast("PDF 생성 중...");
+
+  const doc=new jsPDF({orientation:"p",unit:"mm",format:"a4"});
+  const W=doc.internal.pageSize.getWidth();
+  const pageH=doc.internal.pageSize.getHeight();
+  const margin=18;
+  const contentW=W-margin*2;
+  let y=margin;
+
+  const addText=(text,size,color,x=margin,bold=false)=>{
+    doc.setFontSize(size);
+    doc.setTextColor(...color);
+    if(bold)doc.setFont("helvetica","bold");
+    else doc.setFont("helvetica","normal");
+    const lines=doc.splitTextToSize(text,contentW-(x-margin));
+    lines.forEach(line=>{
+      if(y>pageH-margin){doc.addPage();y=margin;}
+      doc.text(line,x,y);
+      y+=size*0.4+1;
+    });
+    y+=2;
+  };
+
+  const addSep=()=>{
+    if(y>pageH-margin){doc.addPage();y=margin;}
+    doc.setDrawColor(80,80,90);doc.setLineWidth(0.3);
+    doc.line(margin,y,W-margin,y);y+=4;
+  };
+
+  const isInterview=S.mode==="i";
+  const now=new Date().toLocaleString("ko-KR");
+  const min=Math.floor((Date.now()-S.t0)/60000);
+
+  // 헤더
+  addText("MeetRecord 결과 리포트",22,[138,180,248],margin,true);y+=1;
+  addText(`방 코드: ${S.roomId}   |   생성: ${now}   |   회의 시간: 약 ${min}분`,9,[154,160,166]);
+  addSep();
+
+  // 요약
+  if(_endSuRaw){
+    addText("✦ AI 회의 요약",15,[138,180,248],margin,true);y+=2;
+    const cleaned=_endSuRaw.replace(/###\s/g,"").replace(/##\s/g,"").replace(/\*\*/g,"");
+    addText(cleaned,10,[220,225,235]);
+    addSep();
+  }
+
+  // 리포트
+  if(isInterview&&_endRpRaw){
+    addText("🎯 면접 평가 리포트",15,[197,138,249],margin,true);y+=2;
+    let d;
+    try{d=JSON.parse(_endRpRaw.replace(/```json|```/g,"").trim());}catch(e){d=null;}
+    if(d){
+      const ie=S.tr.find(t=>t.sid===S.ieId||S.ieId==="local"&&t.isLocal)?.speaker||"면접자";
+      addText(`면접자: ${ie}   |   면접관: ${S.username}`,10,[154,160,166]);
+      addText(`평가 항목: ${(S.criteria.length?S.criteria:DC).join(", ")}`,10,[154,160,166]);
+      y+=3;
+      // 점수
+      addText("▸ 항목별 점수",12,[197,138,249],margin,true);y+=1;
+      (d.scores||[]).forEach(s=>{
+        addText(`  ${s.criterion}: ${s.score}/5  — "${s.evidence||""}"`,10,[200,205,215]);
+      });
+      y+=2;
+      // 강점
+      addText("▸ 강점",12,[129,201,149],margin,true);y+=1;
+      (d.strengths||[]).forEach(s=>addText(`  • ${s}`,10,[200,205,215]));
+      if(d.keywords?.length){
+        addText(`  키워드: ${d.keywords.slice(0,3).join(" / ")}`,10,[138,180,248]);
+      }
+      y+=2;
+      // 위험 감지
+      const rl=d.riskDetail;
+      if(rl){
+        addText("▸ 위험 감지",12,[242,139,130],margin,true);y+=1;
+        addText(`  위험도: ${rl.level}`,10,[200,205,215]);
+        addText(`  근거: ${rl.evidence||""}`,10,[200,205,215]);
+        (rl.factors||[]).forEach(f=>addText(`  - ${f}`,10,[200,205,215]));
+      }
+      y+=2;
+      // 보완
+      addText("▸ 보완 영역",12,[253,214,99],margin,true);y+=1;
+      (d.improvements||[]).forEach(s=>addText(`  • ${s}`,10,[200,205,215]));
+      y+=3;
+      // 종합
+      addText("▸ 종합 평가",13,[197,138,249],margin,true);y+=1;
+      addText(`종합 점수: ${d.totalScore||0}/100   판정: ${d.verdict||""}`,12,[200,205,215],margin,true);y+=2;
+      addText(d.summary||"",10,[200,205,215]);
+      y+=3;
+      addText("⚠ 이 리포트는 AI 보조 의견입니다. 최종 채용 결정은 반드시 사람이 판단해야 합니다.",8,[100,105,110]);
+    }else{
+      const cleaned=_endRpRaw.replace(/```json|```/g,"");
+      addText(cleaned,9,[200,205,215]);
+    }
+    addSep();
+  }
+
+  // 스크린샷
+  if(S.screenshots&&S.screenshots.length>0){
+    addText("📸 자동 캡처 화면",12,[154,160,166],margin,true);y+=2;
+    const imgW=(contentW-(S.screenshots.length-1)*5)/S.screenshots.length;
+    for(let i=0;i<S.screenshots.length;i++){
+      try{
+        const img=S.screenshots[i];
+        if(y+50>pageH-margin){doc.addPage();y=margin;}
+        doc.addImage(img,"JPEG",margin+i*(imgW+5),y,imgW,imgW*9/16);
+      }catch(e){}
+    }
+    y+=imgW*9/16+8;
+  }
+
+  // 대화록
+  if(S.tr.length){
+    if(y>pageH-40){doc.addPage();y=margin;}
+    addSep();
+    addText("📝 대화록",13,[154,160,166],margin,true);y+=2;
+    S.tr.forEach(e=>{
+      const t=e.ts.toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"});
+      addText(`[${t}] ${e.speaker}: ${e.text}`,9,[190,195,200]);
+    });
+  }
+
+  doc.save(`MeetRecord_${S.roomId}_${new Date().toLocaleDateString("ko-KR").replace(/\./g,"").replace(/\s/g,"")}.pdf`);
+  toast("PDF 다운로드 완료!");
+}
+
+function closeEndModal(){
+  document.getElementById("endM").classList.remove("open");
+  S.socket?.disconnect();
+  location.href=location.pathname;
 }
 
 // ── Chat ──
@@ -1303,13 +1556,13 @@ async function callAI(prompt){
     if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.error?.message||`HTTP ${res.status}`);}
     const d=await res.json();return d.candidates?.[0]?.content?.parts?.[0]?.text||"";
   }else{
-    const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,messages:[{role:"user",content:prompt}]})});
+    const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":AI_K,"anthropic-version":"2023-06-01"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,messages:[{role:"user",content:prompt}]})});
     if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.error?.message||`HTTP ${res.status}`);}
     const d=await res.json();return d.content?.map(b=>b.text||"").join("")||"";
   }
 }
 
-// ── AI 요약 ──
+// ── AI 인앱 (대화록 패널 버튼) ──
 async function genSum(){
   if(!S.tr.length){toast("기록된 내용이 없습니다");return;}
   if(!AI_K){openAI("su");showSetup("su");return;}
@@ -1317,10 +1570,8 @@ async function genSum(){
   const txt=S.tr.map(e=>`[${e.ts.toLocaleTimeString("ko-KR")}] ${e.speaker}: ${e.text}`).join("\n");
   const min=Math.floor((Date.now()-S.t0)/60000);
   const p=`다음은 화상회의 대화록입니다. 구조화된 요약본을 작성해주세요.\n\n참가자: ${[...new Set(S.tr.map(e=>e.speaker))].join(", ")}\n진행 시간: 약 ${min}분\n\n대화록:\n${txt}\n\n형식:\n### 핵심 논의 사항\n(3~5개)\n\n### 결정된 사항\n\n### 액션 아이템\n\n### 전체 요약\n(2~3문장)`;
-  try{const r=await callAI(p);renderSum(r);}catch(e){if(e.message==="NO_KEY"){showSetup("su");return;}showErr(e.message);}
+  try{const r=await callAI(p);_endSuRaw=r;renderSum(r);}catch(e){if(e.message==="NO_KEY"){showSetup("su");return;}showErr(e.message);}
 }
-
-// ── 면접 리포트 ──
 async function genRep(){
   if(!S.tr.length){toast("기록된 내용이 없습니다");return;}
   if(!AI_K){openAI("rp");showSetup("rp");return;}
@@ -1329,38 +1580,24 @@ async function genRep(){
   const ieEn=S.tr.filter(e=>e.sid===S.ieId||(S.ieId==="local"&&e.isLocal));
   if(!ieEn.length){
     document.getElementById("ald").style.display="none";const c=document.getElementById("aic");c.style.display="block";
-    c.innerHTML=`<div style="text-align:center;padding:24px;color:var(--tx2)"><div style="font-size:24px;margin-bottom:12px">👤</div><div style="font-size:14px;margin-bottom:8px">면접자가 지정되지 않았습니다</div><div style="font-size:12px;line-height:1.6">참가자 패널에서 면접자를 지정하거나<br>입장 허가 시 '면접자'로 역할을 설정하세요</div></div>`;
+    c.innerHTML=`<div style="text-align:center;padding:24px;color:var(--tx2)"><div style="font-size:24px;margin-bottom:12px">👤</div><div>면접자가 지정되지 않았습니다</div></div>`;
     return;
   }
   const ie=ieEn[0].speaker;
   const full=S.tr.map(e=>`[${e.ts.toLocaleTimeString("ko-KR")}] ${e.speaker}: ${e.text}`).join("\n");
   const ieTxt=ieEn.map(e=>`[${e.ts.toLocaleTimeString("ko-KR")}] ${e.text}`).join("\n");
   const min=Math.floor((Date.now()-S.t0)/60000);
-  const behaviorTxt = (S.behaviorLogs || []).join("\n");
-  
-  // (Goal 5) 면접자 행동 및 시선 로그 프롬프트에 포함
+  const behaviorTxt=(S.behaviorLogs||[]).join("\n");
   const p=`채용 면접 대화록 및 행동 분석 로그를 바탕으로 JSON 리포트를 생성하세요.
-
-면접자: ${ie}
-면접관: ${S.username}
-면접 시간: 약 ${min}분
+면접자: ${ie} | 면접관: ${S.username} | 면접 시간: 약 ${min}분
 평가 항목: ${cl.join(", ")}
-
-전체 대화록:
-${full}
-
-면접자(${ie}) 발화:
-${ieTxt}
-
-면접자 시선 및 행동 로그 (AI 비전 기반):
-${behaviorTxt || "특이사항 없음 (시선 안정적)"}
-
-행동 로그를 분석하여 '태도 및 집중도' 평가에 반드시 반영하세요. 시선 이탈이나 주의 산만이 잦을 경우 감점 요인이 될 수 있습니다.
-
-JSON만 응답하세요:
-{"scores":[{"criterion":"항목","score":숫자(1-5),"evidence":"발화/행동 근거"}],"strengths":["강점1","강점2","강점3"],"improvements":["보완1","보완2"],"summary":"종합평가 2~3문장","verdict":"적합 또는 보류 또는 재검토","totalScore":숫자(0-100)}`;
-
-  try{const r=await callAI(p);renderRep(r,ie);}catch(e){if(e.message==="NO_KEY"){showSetup("rp");return;}showErr(e.message);}
+전체 대화록:\n${full}
+면접자 발화:\n${ieTxt}
+행동 로그:\n${behaviorTxt||"특이사항 없음"}
+${RISK_CRITERIA}
+JSON으로만 응답:
+{"scores":[{"criterion":"항목","score":1-5,"evidence":"근거"}],"strengths":["강점1","강점2","강점3"],"keywords":["키워드1","키워드2","키워드3"],"improvements":["보완1","보완2"],"riskDetail":{"level":"낮음/보통/높음","factors":["요인"],"evidence":"근거"},"summary":"종합평가","verdict":"적합/보류/재검토","totalScore":0-100}`;
+  try{const r=await callAI(p);_endRpRaw=r;renderRepInApp(r,ie,cl,min);}catch(e){if(e.message==="NO_KEY"){showSetup("rp");return;}showErr(e.message);}
 }
 
 function openAI(type){
@@ -1377,10 +1614,9 @@ function closeAI(){document.getElementById("aiM").classList.remove("open");}
 function showSetup(type){
   document.getElementById("ald").style.display="none";
   const c=document.getElementById("aic");c.style.display="block";
-  c.innerHTML=`<div class="api-box"><h4>🔑 AI API 키 설정</h4><p style="font-size:12px;color:var(--tx2);margin-bottom:14px;line-height:1.6">AI 요약/리포트 기능을 사용하려면 API 키가 필요합니다.<br>아래 무료 옵션 중 하나를 선택해 키를 발급받으세요.</p>
-<div class="api-opt"><div class="api-ot g">⭐ Google Gemini API <span class="fbadge">완전 무료</span></div><div class="api-od">1. <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a> → Google 로그인<br>2. <strong>Get API key → Create API key</strong> 클릭<br>3. 생성된 키 복사 후 아래 입력<br><span style="color:var(--green)">✓ gemini-2.5-flash: 월 1,500건 무료 (테스트 충분)</span></div></div>
-<div class="api-opt"><div class="api-ot">🤖 Anthropic Claude API <span class="fbadge pu">$5 무료 크레딧</span></div><div class="api-od">1. <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> → 회원가입<br>2. 신규 가입 시 <strong>$5 무료 크레딧 자동 지급</strong><br>3. API Keys → Create Key → 아래 입력<br><span style="color:var(--tx2)">요약/리포트 1건 ≈ $0.003 → 약 1,600건 가능</span></div></div>
-<div style="margin-top:14px"><label class="lbl" style="margin-bottom:6px">사용할 AI</label><select id="aiSel" style="margin-bottom:10px"><option value="gemini" ${AI_P==="gemini"?"selected":""}>Google Gemini (무료)</option><option value="claude" ${AI_P==="claude"?"selected":""}>Anthropic Claude ($5 크레딧)</option></select><label class="lbl" style="margin-bottom:6px">API 키</label><div class="api-row"><input type="text" id="apiKI" placeholder="API 키를 여기에 붙여넣으세요"/><button class="api-sv" onclick="saveKey('${type}')">저장 후 실행</button></div><div style="font-size:11px;color:var(--tx2);margin-top:6px">키는 이 세션에만 저장되며 외부로 전송되지 않습니다.</div></div></div>`;
+  c.innerHTML=`<div class="api-box"><h4>🔑 AI API 키 설정</h4><p style="font-size:12px;color:var(--tx2);margin-bottom:14px;line-height:1.6">AI 요약/리포트 기능을 사용하려면 API 키가 필요합니다.</p>
+<div class="api-opt"><div class="api-ot g">⭐ Google Gemini API <span class="fbadge">완전 무료</span></div><div class="api-od">1. <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a> → Google 로그인<br>2. <strong>Get API key → Create API key</strong><br>3. 생성된 키 복사 후 아래 입력<br><span style="color:var(--green)">✓ 월 1,500건 무료</span></div></div>
+<div style="margin-top:14px"><label class="lbl" style="margin-bottom:6px">사용할 AI</label><select id="aiSel" style="margin-bottom:10px"><option value="gemini" ${AI_P==="gemini"?"selected":""}>Google Gemini (무료)</option><option value="claude" ${AI_P==="claude"?"selected":""}>Anthropic Claude ($5 크레딧)</option></select><label class="lbl" style="margin-bottom:6px">API 키</label><div class="api-row"><input type="text" id="apiKI" placeholder="API 키를 여기에 붙여넣으세요"/><button class="api-sv" onclick="saveKey('${type}')">저장 후 실행</button></div><div style="font-size:11px;color:var(--tx2);margin-top:6px">키는 이 세션에만 저장됩니다.</div></div></div>`;
 }
 function saveKey(type){
   const k=document.getElementById("apiKI").value.trim();const p=document.getElementById("aiSel").value;
@@ -1394,31 +1630,18 @@ function showErr(msg){
 }
 function renderSum(text){
   document.getElementById("ald").style.display="none";const c=document.getElementById("aic");c.style.display="block";
-  let h=esc(text).replace(/### (.+)/g,"<h3>$1</h3>").replace(/## (.+)/g,"<h3>$1</h3>").replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>").replace(/^- (.+)/gm,"<li>$1</li>").replace(/(<li>.*<\/li>\n?)+/g,m=>`<ul>${m}</ul>`).replace(/\n{2,}/g,"</p><p>").replace(/\n/g,"<br/>");
-  c.innerHTML=`<p>${h}</p>`;
+  c.innerHTML=buildSumHtml(text);
 }
-function renderRep(text,ie){
+function renderRepInApp(text,ie,cl,min){
   document.getElementById("ald").style.display="none";const c=document.getElementById("aic");c.style.display="block";
-  let d;try{d=JSON.parse(text.replace(/\`\`\`json|\`\`\`/g,"").trim());}catch(e){c.innerHTML=`<p style="color:var(--tx2);font-size:12px">파싱 오류:</p><pre style="font-size:11px;color:var(--tx2);white-space:pre-wrap;margin-top:8px">${esc(text)}</pre>`;return;}
-  const vc=d.verdict==="적합"?"g":d.verdict==="보류"?"h":"r";
-  const min=Math.floor((Date.now()-S.t0)/60000);
-  const cl=S.criteria.length?S.criteria:DC;
-  
-  // (Goal 4) 캡처된 스크린샷 렌더링
-  const ssHtml = S.screenshots && S.screenshots.length > 0 ? 
-      `<h3 class="pu">📸 자동 캡처 스크린샷</h3>
-       <div style="display:flex; gap:10px; overflow-x:auto; margin-bottom:15px; padding-bottom:5px;">
-           ${S.screenshots.map(s => `<img src="${s}" style="height:90px; border-radius:8px; border:1px solid var(--border); object-fit:cover;">`).join('')}
-       </div>` : '';
-
-  c.innerHTML=ssHtml + `<h3 class="pu">👤 면접자 기본 정보</h3><div style="background:var(--bg3);border-radius:8px;padding:11px;font-size:12px;line-height:1.8;margin-bottom:11px"><div><strong>면접자:</strong> ${esc(ie)}</div><div><strong>면접관:</strong> ${esc(S.username)}</div><div><strong>면접 시간:</strong> 약 ${min}분</div><div><strong>평가 항목:</strong> ${cl.map(esc).join(", ")}</div></div><h3 class="pu">📊 인재상 항목별 점수</h3><div class="sgrid">${(d.scores||[]).map(s=>`<div class="scard"><div class="sct">${esc(s.criterion)}</div><div class="scv">${s.score}<span>/5</span></div><div class="sbar"><div class="sbarf" style="width:${s.score/5*100}%"></div></div><div class="sce">"${esc(s.evidence||"")}"</div></div>`).join("")}</div><h3 class="pu">✅ 강점 분석</h3><ul>${(d.strengths||[]).map(s=>`<li>${esc(s)}</li>`).join("")}</ul><h3 class="pu">🔧 보완 영역</h3><ul>${(d.improvements||[]).map(s=>`<li>${esc(s)}</li>`).join("")}</ul><h3 class="pu">🏆 종합 평가</h3><div class="tsbox"><div><div class="tsnum">${d.totalScore||0}<span>/100</span></div><div class="tslbl">인재상 부합 종합 점수</div></div><div style="flex:1;padding:0 12px;font-size:12px;color:var(--tx2);line-height:1.6">${esc(d.summary||"")}</div><span class="verd ${vc}">${esc(d.verdict||"")}</span></div><p style="font-size:11px;color:var(--tx2);margin-top:8px;line-height:1.5">⚠ 이 리포트는 AI 보조 의견입니다. 최종 채용 결정은 반드시 사람이 판단해야 합니다.</p>`;
+  c.innerHTML=buildRepHtml(text,ie,cl,min);
 }
 function copyAI(){navigator.clipboard.writeText(document.getElementById("aic").innerText||"").then(()=>toast("클립보드에 복사됐습니다"));}
 
 // ── utils ──
 function updCnt(){document.getElementById("pnum").textContent=document.querySelectorAll(".vt").length;}
 function updTimer(){if(!S.t0)return;const e=Math.floor((Date.now()-S.t0)/1000);document.getElementById("htime").textContent=`${Math.floor(e/60).toString().padStart(2,"0")}:${(e%60).toString().padStart(2,"0")}`;}
-let _tt;function toast(msg){const el=document.getElementById("toast");el.textContent=msg;el.classList.add("on");clearTimeout(_tt);_tt=setTimeout(()=>el.classList.remove("on"),2500);}
+let _tt;function toast(msg){const el=document.getElementById("toast");el.textContent=msg;el.classList.add("on");clearTimeout(_tt);_tt=setTimeout(()=>el.classList.remove("on"),2800);}
 function esc(s){if(!s)return"";return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
 </script>
 </body>
